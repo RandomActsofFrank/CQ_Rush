@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Washington County Debug</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            height: 600px;
+            width: 100%;
+            border: 1px solid #ccc;
+        }
+        #debug {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .debug-item {
+            margin: 5px 0;
+            padding: 5px;
+            background: white;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Washington County Subdivision Debug</h1>
+    <div id="map"></div>
+    <div id="debug">
+        <h3>Debug Information:</h3>
+        <div id="debug-content"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Debug container
+        const debugContainer = document.getElementById('debug-content');
+        
+        function log(message, data = null) {
+            const div = document.createElement('div');
+            div.className = 'debug-item';
+            div.innerHTML = `<strong>${message}</strong>`;
+            if (data) {
+                div.innerHTML += `<br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            debugContainer.appendChild(div);
+        }
+
+        // Initialize map
+        const map = L.map('map').setView([47.7511, -120.7401], 6); // Washington center
+
+        // Add tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Washington county definitions
+        const ewaCounties = ['Adams', 'Asotin', 'Benton', 'Chelan', 'Columbia', 'Douglas', 'Ferry', 'Franklin', 'Garfield', 'Grant', 'Kittitas', 'Klickitat', 'Lincoln', 'Okanogan', 'Pend Oreille', 'Spokane', 'Stevens', 'Walla Walla', 'Whitman', 'Yakima'];
+        const wwaCounties = ['Clallam', 'Clark', 'Cowlitz', 'Grays Harbor', 'Island', 'Jefferson', 'King', 'Kitsap', 'Lewis', 'Mason', 'Pacific', 'Pierce', 'San Juan', 'Skagit', 'Skamania', 'Snohomish', 'Thurston', 'Wahkiakum', 'Whatcom'];
+
+        log('EWA Counties:', ewaCounties);
+        log('WWA Counties:', wwaCounties);
+
+        // Load county data
+        fetch('/us_counties_5m.json')
+            .then(response => response.json())
+            .then(countiesData => {
+                log('County data loaded', {
+                    totalCounties: countiesData.features.length,
+                    sampleCounty: countiesData.features[0]?.properties
+                });
+
+                // Find Washington counties
+                const washingtonCounties = countiesData.features.filter(county => 
+                    county.properties.STATEFP === '53'
+                );
+
+                log('Washington counties found', {
+                    count: washingtonCounties.length,
+                    counties: washingtonCounties.map(c => c.properties.NAME)
+                });
+
+                // Separate EWA and WWA counties
+                const ewaFeatures = [];
+                const wwaFeatures = [];
+
+                washingtonCounties.forEach(county => {
+                    const countyName = county.properties.NAME;
+                    if (ewaCounties.includes(countyName)) {
+                        ewaFeatures.push(county);
+                    } else if (wwaCounties.includes(countyName)) {
+                        wwaFeatures.push(county);
+                    }
+                });
+
+                log('EWA features found', {
+                    count: ewaFeatures.length,
+                    counties: ewaFeatures.map(f => f.properties.NAME)
+                });
+
+                log('WWA features found', {
+                    count: wwaFeatures.length,
+                    counties: wwaFeatures.map(f => f.properties.NAME)
+                });
+
+                // Create MultiPolygon geometries
+                function createMultiPolygon(features) {
+                    if (features.length === 0) return null;
+                    
+                    const coordinates = features.map(f => {
+                        if (f.geometry.type === 'Polygon') {
+                            return f.geometry.coordinates;
+                        } else if (f.geometry.type === 'MultiPolygon') {
+                            return f.geometry.coordinates;
+                        }
+                        return [];
+                    }).flat();
+                    
+                    return {
+                        type: 'MultiPolygon',
+                        coordinates: coordinates
+                    };
+                }
+
+                // Create EWA and WWA features
+                const ewaGeometry = createMultiPolygon(ewaFeatures);
+                const wwaGeometry = createMultiPolygon(wwaFeatures);
+
+                log('EWA geometry created', {
+                    success: !!ewaGeometry,
+                    coordinates: ewaGeometry ? ewaGeometry.coordinates.length : 0
+                });
+
+                log('WWA geometry created', {
+                    success: !!wwaGeometry,
+                    coordinates: wwaGeometry ? wwaGeometry.coordinates.length : 0
+                });
+
+                // Add EWA to map
+                if (ewaGeometry) {
+                    const ewaFeature = {
+                        type: 'Feature',
+                        properties: {
+                            name: 'Eastern Washington',
+                            abbreviation: 'EWA',
+                            isContacted: false
+                        },
+                        geometry: ewaGeometry
+                    };
+
+                    L.geoJSON(ewaFeature, {
+                        style: {
+                            fillColor: '#ff0000',
+                            weight: 2,
+                            opacity: 1,
+                            color: '#333',
+                            fillOpacity: 0.7
+                        }
+                    }).addTo(map);
+
+                    log('EWA added to map', ewaFeature);
+                }
+
+                // Add WWA to map
+                if (wwaGeometry) {
+                    const wwaFeature = {
+                        type: 'Feature',
+                        properties: {
+                            name: 'Western Washington',
+                            abbreviation: 'WWA',
+                            isContacted: false
+                        },
+                        geometry: wwaGeometry
+                    };
+
+                    L.geoJSON(wwaFeature, {
+                        style: {
+                            fillColor: '#0000ff',
+                            weight: 2,
+                            opacity: 1,
+                            color: '#333',
+                            fillOpacity: 0.7
+                        }
+                    }).addTo(map);
+
+                    log('WWA added to map', wwaFeature);
+                }
+
+                // Add individual counties for comparison
+                washingtonCounties.forEach(county => {
+                    L.geoJSON(county, {
+                        style: {
+                            fillColor: '#ffff00',
+                            weight: 1,
+                            opacity: 0.5,
+                            color: '#666',
+                            fillOpacity: 0.3
+                        }
+                    }).addTo(map);
+                });
+
+                log('Individual counties added to map (yellow)');
+
+            })
+            .catch(error => {
+                log('Error loading county data', error);
+            });
+    </script>
+</body>
+</html> 

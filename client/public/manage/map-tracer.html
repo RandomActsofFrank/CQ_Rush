@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARRL Sections Map Tracer - SVG Version</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .canvas-container {
+            position: relative;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+            background: white;
+        }
+        #mapCanvas {
+            display: block;
+            cursor: crosshair;
+        }
+        .state-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .state-item {
+            padding: 5px 10px;
+            background: #e9ecef;
+            border: 1px solid #dee2e6;
+            border-radius: 3px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 12px;
+        }
+        .state-item:hover {
+            background: #007bff;
+            color: white;
+        }
+        .state-item.selected {
+            background: #28a745;
+            color: white;
+        }
+        .output {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .output textarea {
+            width: 100%;
+            height: 200px;
+            font-family: monospace;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-warning {
+            background: #ffc107;
+            color: black;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .auto-join-controls {
+            margin: 10px 0;
+            padding: 10px;
+            background: #e7f3ff;
+            border-radius: 4px;
+        }
+        .auto-join-controls label {
+            margin-right: 15px;
+        }
+        .auto-join-controls input[type="number"] {
+            width: 80px;
+            padding: 4px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ARRL Sections Map Tracer - SVG Version</h1>
+        <p>Trace state boundaries on the ARRL sections map to create SVG path data for highlighting.</p>
+        
+        <div class="controls">
+            <div class="auto-join-controls">
+                <label>
+                    <input type="checkbox" id="autoJoin" checked> Auto-join small gaps
+                </label>
+                <label>
+                    Max gap distance: <input type="number" id="maxGapDistance" value="10" min="1" max="50">
+                </label>
+                <label>
+                    Min segment length: <input type="number" id="minSegmentLength" value="5" min="1" max="20">
+                </label>
+            </div>
+            
+            <div>
+                <label for="stateSelect">Select State/Province:</label>
+                <select id="stateSelect">
+                    <option value="">-- Select a state --</option>
+                    <option value="AZ">Arizona (AZ)</option>
+                    <option value="CO">Colorado (CO)</option>
+                    <option value="CT">Connecticut (CT)</option>
+                    <option value="IA">Iowa (IA)</option>
+                    <option value="KS">Kansas (KS)</option>
+                    <option value="MN">Minnesota (MN)</option>
+                    <option value="MO">Missouri (MO)</option>
+                    <option value="NE">Nebraska (NE)</option>
+                    <option value="NM">New Mexico (NM)</option>
+                    <option value="OK">Oklahoma (OK)</option>
+                    <option value="SD">South Dakota (SD)</option>
+                    <option value="TX">Texas (TX)</option>
+                    <option value="UT">Utah (UT)</option>
+                    <option value="WY">Wyoming (WY)</option>
+                </select>
+                <span id="currentStateDisplay" style="margin-left: 10px; font-weight: bold; color: red;">No state selected</span>
+            </div>
+            
+            <div style="margin-top: 10px;">
+                <button class="btn-primary" onclick="startTracing()">Start Tracing</button>
+                <button class="btn-warning" onclick="clearCanvas()">Clear Canvas</button>
+                <button class="btn-success" onclick="generatePath()">Generate Path</button>
+                <button class="btn-danger" onclick="resetTracer()">Reset All</button>
+            </div>
+            
+            <div class="status info" id="status">
+                Select a state and click "Start Tracing" to begin tracing the state boundaries.
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="mapCanvas" width="1200" height="800"></canvas>
+        </div>
+
+        <div class="state-list" id="stateList">
+            <!-- State list will be populated by JavaScript -->
+        </div>
+
+        <div class="output">
+            <h3>Generated SVG Path Data:</h3>
+            <textarea id="pathOutput" placeholder="Tracing data will appear here..."></textarea>
+            <div style="margin-top: 10px;">
+                <button class="btn-primary" onclick="copyToClipboard()">Copy to Clipboard</button>
+                <button class="btn-success" onclick="exportAllPaths()">Export All Paths</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const stateSelect = document.getElementById('stateSelect');
+        const statusDiv = document.getElementById('status');
+        const pathOutput = document.getElementById('pathOutput');
+        const currentStateDisplay = document.getElementById('currentStateDisplay');
+        
+        let currentState = '';
+        let isTracing = false;
+        let tracedPoints = [];
+        let allPaths = {};
+        let svgImage = null;
+        
+        // Auto-join settings
+        let autoJoin = true;
+        let maxGapDistance = 10;
+        let minSegmentLength = 5;
+
+        // ARRL Sections states/provinces
+        const states = [
+            'AZ', 'CO', 'CT', 'IA', 'KS', 'MN', 'MO', 'NE', 'NM', 'OK', 'SD', 'TX', 'UT', 'WY',
+            'AL', 'AR', 'CA', 'DE', 'FL', 'GA', 'ID', 'IL', 'IN', 'KY', 'LA', 'MA', 'MD', 'ME',
+            'MI', 'MS', 'MT', 'NC', 'ND', 'NH', 'NJ', 'NV', 'NY', 'OH', 'OR', 'PA', 'RI', 'SC',
+            'TN', 'VA', 'VT', 'WA', 'WI', 'WV', 'BC', 'AB', 'SK', 'MB', 'ON', 'QC', 'NB', 'NS'
+        ];
+
+        function updateStateDisplay() {
+            if (currentState) {
+                currentStateDisplay.textContent = `Selected: ${currentState}`;
+                currentStateDisplay.style.color = 'green';
+            } else {
+                currentStateDisplay.textContent = 'No state selected';
+                currentStateDisplay.style.color = 'red';
+            }
+        }
+
+        function updateAutoJoinSettings() {
+            autoJoin = document.getElementById('autoJoin').checked;
+            maxGapDistance = parseInt(document.getElementById('maxGapDistance').value);
+            minSegmentLength = parseInt(document.getElementById('minSegmentLength').value);
+        }
+
+        // Initialize the tracer
+        function initTracer() {
+            // Load the SVG as an image
+            svgImage = new Image();
+            svgImage.onload = function() {
+                drawMap();
+                updateStateDisplay();
+                updateStatus('Map loaded. Select a state and start tracing.', 'success');
+            };
+            svgImage.onerror = function() {
+                updateStatus('Error loading SVG map. Please check the file path.', 'error');
+            };
+            svgImage.src = '/arrl-sections-map.svg';
+            
+            // Set up event listeners
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseleave', stopDrawing);
+            
+            // Set up auto-join controls
+            document.getElementById('autoJoin').addEventListener('change', updateAutoJoinSettings);
+            document.getElementById('maxGapDistance').addEventListener('change', updateAutoJoinSettings);
+            document.getElementById('minSegmentLength').addEventListener('change', updateAutoJoinSettings);
+            
+            // Set up state select
+            stateSelect.addEventListener('change', function() {
+                currentState = this.value;
+                updateStateDisplay();
+                if (currentState) {
+                    updateStatus(`Selected state: ${currentState}. Click "Start Tracing" to begin.`, 'info');
+                }
+            });
+            
+            // Populate state list
+            populateStateList();
+        }
+
+        function populateStateList() {
+            const stateList = document.getElementById('stateList');
+            stateList.innerHTML = '';
+            
+            states.forEach(state => {
+                const stateItem = document.createElement('div');
+                stateItem.className = 'state-item';
+                stateItem.textContent = state;
+                stateItem.onclick = function() {
+                    currentState = state;
+                    stateSelect.value = state;
+                    updateStateDisplay();
+                    updateStatus(`Selected state: ${state}. Click "Start Tracing" to begin.`, 'info');
+                };
+                stateList.appendChild(stateItem);
+            });
+        }
+
+        function drawMap() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw the SVG map
+            if (svgImage) {
+                ctx.drawImage(svgImage, 0, 0, canvas.width, canvas.height);
+            }
+            
+            // Draw existing traced paths
+            Object.keys(allPaths).forEach(state => {
+                drawPath(allPaths[state], state === currentState ? '#28a745' : '#007bff');
+            });
+            
+            // Draw current tracing
+            if (tracedPoints.length > 1) {
+                drawPath(tracedPoints, '#dc3545');
+            }
+        }
+
+        function drawPath(points, color) {
+            if (points.length < 2) return;
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            
+            ctx.stroke();
+        }
+
+        function startTracing() {
+            if (!currentState) {
+                updateStatus('Please select a state first.', 'error');
+                return;
+            }
+            
+            isTracing = true;
+            tracedPoints = [];
+            updateStatus(`Tracing started for ${currentState}. Click and drag to trace the boundary.`, 'info');
+        }
+
+        function startDrawing(e) {
+            if (!isTracing) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            tracedPoints.push({ x, y });
+            drawMap();
+        }
+
+        function draw(e) {
+            if (!isTracing || tracedPoints.length === 0) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Only add point if it's far enough from the last point
+            const lastPoint = tracedPoints[tracedPoints.length - 1];
+            const distance = Math.sqrt((x - lastPoint.x) ** 2 + (y - lastPoint.y) ** 2);
+            
+            if (distance > 2) {
+                tracedPoints.push({ x, y });
+                drawMap();
+            }
+        }
+
+        function stopDrawing() {
+            if (!isTracing) return;
+            
+            isTracing = false;
+            
+            if (tracedPoints.length > 0) {
+                // Apply auto-join if enabled
+                if (autoJoin) {
+                    tracedPoints = autoJoinSegments(tracedPoints);
+                }
+                
+                allPaths[currentState] = [...tracedPoints];
+                updateStatus(`Tracing completed for ${currentState}. ${tracedPoints.length} points captured.`, 'success');
+                drawMap();
+            }
+        }
+
+        function autoJoinSegments(points) {
+            if (points.length < 2) return points;
+            
+            const joined = [points[0]];
+            
+            for (let i = 1; i < points.length; i++) {
+                const current = points[i];
+                const previous = joined[joined.length - 1];
+                const distance = Math.sqrt((current.x - previous.x) ** 2 + (current.y - previous.y) ** 2);
+                
+                // If gap is small, interpolate points
+                if (distance > maxGapDistance && distance < maxGapDistance * 3) {
+                    const steps = Math.ceil(distance / maxGapDistance);
+                    for (let j = 1; j < steps; j++) {
+                        const t = j / steps;
+                        const interpolated = {
+                            x: previous.x + (current.x - previous.x) * t,
+                            y: previous.y + (current.y - previous.y) * t
+                        };
+                        joined.push(interpolated);
+                    }
+                }
+                
+                joined.push(current);
+            }
+            
+            // Remove very short segments
+            return joined.filter((point, index) => {
+                if (index === 0) return true;
+                const previous = joined[index - 1];
+                const distance = Math.sqrt((point.x - previous.x) ** 2 + (point.y - previous.y) ** 2);
+                return distance >= minSegmentLength;
+            });
+        }
+
+        function generatePath() {
+            if (!currentState || !allPaths[currentState]) {
+                updateStatus('No traced path available for the current state.', 'error');
+                return;
+            }
+            
+            const points = allPaths[currentState];
+            const pathData = points.map((point, index) => {
+                const command = index === 0 ? 'M' : 'L';
+                return `${command}${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+            }).join(' ');
+            
+            const svgPath = `<path d="${pathData}" fill="none" stroke="green" stroke-width="2" opacity="0.8" />`;
+            
+            pathOutput.value = `// ${currentState} boundary path\nconst ${currentState}Path = "${pathData}";\n\n// SVG element\n${svgPath}`;
+            
+            updateStatus(`Path data generated for ${currentState}.`, 'success');
+        }
+
+        function clearCanvas() {
+            tracedPoints = [];
+            drawMap();
+            updateStatus('Canvas cleared.', 'info');
+        }
+
+        function resetTracer() {
+            currentState = '';
+            isTracing = false;
+            tracedPoints = [];
+            allPaths = {};
+            stateSelect.value = '';
+            pathOutput.value = '';
+            updateStateDisplay();
+            drawMap();
+            updateStatus('Tracer reset. Select a state to begin.', 'info');
+        }
+
+        function copyToClipboard() {
+            pathOutput.select();
+            document.execCommand('copy');
+            updateStatus('Path data copied to clipboard.', 'success');
+        }
+
+        function exportAllPaths() {
+            let exportData = '// ARRL Sections Map Paths\n\n';
+            
+            Object.keys(allPaths).forEach(state => {
+                const points = allPaths[state];
+                const pathData = points.map((point, index) => {
+                    const command = index === 0 ? 'M' : 'L';
+                    return `${command}${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+                }).join(' ');
+                
+                exportData += `const ${state}Path = "${pathData}";\n`;
+            });
+            
+            exportData += '\n// Usage in SVG:\n';
+            Object.keys(allPaths).forEach(state => {
+                exportData += `<path d="${state}Path" fill="none" stroke="green" stroke-width="2" opacity="0.8" />\n`;
+            });
+            
+            pathOutput.value = exportData;
+            updateStatus(`Exported ${Object.keys(allPaths).length} state paths.`, 'success');
+        }
+
+        function updateStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        // Initialize when page loads
+        window.onload = initTracer;
+    </script>
+</body>
+</html> 

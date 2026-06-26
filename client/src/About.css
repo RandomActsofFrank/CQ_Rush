@@ -1,0 +1,161 @@
+.about-page {
+  min-height: 100vh;
+  background: linear-gradient(160deg, #05070a 0%, #1a202c 100%);
+  padding: 24px 16px 16px;
+  overflow-y: auto;
+}
+
+.about-shell {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.about-banner {
+  display: block;
+  width: 100%;
+  border-radius: 12px 12px 0 0;
+  object-fit: cover;
+}
+
+.about-card {
+  background: #ffffff;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
+  padding: 28px 28px 20px;
+}
+
+.about-tagline {
+  text-align: center;
+  color: #475569;
+  margin: 0 0 28px;
+  line-height: 1.5;
+  font-size: 1.05rem;
+}
+
+.about-section {
+  margin-bottom: 24px;
+}
+
+.about-section h2 {
+  color: #0a1626;
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+}
+
+.about-section p {
+  color: #334155;
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+
+.about-section a {
+  color: #c41e24;
+  font-weight: 600;
+}
+
+.about-section a:hover {
+  color: #8f1519;
+}
+
+.about-donate {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.about-donate-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.about-donate-qr img {
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.about-donate-qr span {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.about-donate-actions {
+  flex: 1 1 220px;
+}
+
+.about-donate-button {
+  display: inline-block;
+  padding: 12px 20px;
+  border-radius: 8px;
+  background: #c41e24;
+  color: #ffffff !important;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.about-donate-button:hover {
+  background: #a0181d;
+}
+
+.about-donate-note {
+  margin-top: 10px;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.about-back {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.about-back-link {
+  color: #2b6cb0;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.about-back-link:hover {
+  text-decoration: underline;
+}
+
+.about-footer {
+  margin-top: 16px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.about-footer .app-footer-link {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.about-footer .app-footer-link:hover {
+  color: #ffffff;
+}
+
+@media (max-width: 600px) {
+  .about-card {
+    padding: 20px 16px 16px;
+  }
+
+  .about-donate {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .about-donate-button {
+    display: block;
+    text-align: center;
+  }
+}

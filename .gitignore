@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Environment
+deploy/aws/.env.production
+deploy/aws/.aws-deploy-state
+
+# Database
+*.db
+*.db-journal
+
+# Build output (rebuilt in Docker/CI)
+client/build/
+
+# Logs
+npm-debug.log*
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/

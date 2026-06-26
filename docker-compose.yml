@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: hamlog
+      POSTGRES_PASSWORD: hamlog
+      POSTGRES_DB: hamlog
+    ports:
+      - "5432:5432"
+    volumes:
+      - hamlog_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hamlog -d hamlog"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "3002:3002"
+    environment:
+      DATABASE_URL: postgresql://hamlog:hamlog@db:5432/hamlog
+      SESSION_SECRET: local-dev-session-secret
+      NODE_ENV: production
+      PORT: 3002
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  hamlog_pg_data:
