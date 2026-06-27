@@ -117,6 +117,23 @@ function App() {
   const [showScorePopup, setShowScorePopup] = useState(false);
   const [stationSettings, setStationSettings] = useState(DEFAULT_STATION_SETTINGS);
   const [fieldErrors, setFieldErrors] = useState({});
+  const callsignInputRef = useRef(null);
+
+  const focusLoggingStart = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      callsignInputRef.current?.focus();
+    });
+  }, []);
+
+  const focusLoggingField = useCallback((fieldId) => {
+    window.requestAnimationFrame(() => {
+      if (fieldId === 'callsign') {
+        callsignInputRef.current?.focus();
+        return;
+      }
+      document.getElementById(fieldId)?.focus();
+    });
+  }, []);
 
   // ARRL Sections Map popup state
   const [showARRLMap, setShowARRLMap] = useState(false);
@@ -810,6 +827,13 @@ function App() {
 
     if (Object.keys(nextFieldErrors).length > 0) {
       setFieldErrors(nextFieldErrors);
+      if (nextFieldErrors.callsign) {
+        focusLoggingField('callsign');
+      } else if (nextFieldErrors.classSent) {
+        focusLoggingField('classSent');
+      } else if (nextFieldErrors.locationReceived) {
+        focusLoggingField('locationReceived');
+      }
       return;
     }
     
@@ -828,12 +852,14 @@ function App() {
     // Validate class
     if (!validateClass(upperFormData.classSent)) {
       setFieldErrors({ classSent: 'invalid' });
+      focusLoggingField('classSent');
       return;
     }
     
     // Validate location
     if (!validateLocation(upperFormData.locationReceived)) {
       setFieldErrors({ locationReceived: 'invalid' });
+      focusLoggingField('locationReceived');
       return;
     }
     
@@ -876,6 +902,7 @@ function App() {
           notes: ''
         }));
         setLicenseNotice(null);
+        focusLoggingStart();
       }
     } catch (error) {
       console.error('Error saving contact:', error);
@@ -891,6 +918,7 @@ function App() {
         notes: ''
       }));
       setLicenseNotice(null);
+      focusLoggingStart();
     }
   };
 
@@ -1905,6 +1933,7 @@ function App() {
                             type="text"
                             id="callsign"
                             name="callsign"
+                            ref={callsignInputRef}
                             tabIndex={1}
                             value={formData.callsign}
                             onChange={(e) => {
@@ -1962,7 +1991,7 @@ function App() {
                         <select
                           id="frequency"
                           name="frequency"
-                          tabIndex={5}
+                          tabIndex={-1}
                           value={formData.frequency}
                           onChange={handleInputChange}
                           disabled={!operator.callsign}
@@ -1984,7 +2013,7 @@ function App() {
                         <select
                           id="mode"
                           name="mode"
-                          tabIndex={6}
+                          tabIndex={-1}
                           value={formData.mode}
                           onChange={handleInputChange}
                           disabled={!operator.callsign}
@@ -2095,7 +2124,7 @@ function App() {
                           type="text"
                           id="notes"
                           name="notes"
-                          tabIndex={4}
+                          tabIndex={-1}
                           value={formData.notes}
                           onChange={handleInputChange}
                           placeholder="Optional notes"
@@ -2107,7 +2136,7 @@ function App() {
 
                     <button 
                       type="submit" 
-                      tabIndex={7}
+                      tabIndex={4}
                       className={`btn ${!operator.callsign || !formData.frequency || !formData.mode ? 'btn-disabled' : ''}`}
                       disabled={!operator.callsign || !formData.frequency || !formData.mode}
                     >

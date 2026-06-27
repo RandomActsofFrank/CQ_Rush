@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Log contact tab order is now Callsign → Class → Location → Notes (Band and Mode follow; auto-populated fields are skipped)
+- Log contact tab order: **Callsign → Class → Location → Log Contact** (loops back to Callsign after each log). Band and Mode are click-only (not in the tab cycle); Notes and auto-populated fields are skipped
 
 ### Fixed
 
