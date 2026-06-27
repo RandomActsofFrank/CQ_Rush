@@ -1832,9 +1832,13 @@ code {
 }
 
 .callsign-log-details {
-  margin-bottom: 12px;
-  padding-bottom: 12px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
   border-bottom: 1px solid #e9ecef;
+}
+
+.callsign-log-details .info-row {
+  margin-bottom: 4px;
 }
 
 .callsign-popup-section-title {
@@ -1844,6 +1848,19 @@ code {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #558303;
+  line-height: 1.3;
+}
+
+.info-row-pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.info-row-pair span strong {
+  min-width: 0;
+  display: inline;
+  margin-right: 4px;
 }
 
 .info-row {

@@ -2316,24 +2316,19 @@ function App() {
             <div className="callsign-popup-body">
               {callsignPopupContact && (
                 <div className="callsign-log-details">
-                  <h5 className="callsign-popup-section-title">This log entry</h5>
+                  <h5 className="callsign-popup-section-title">
+                    This Log Entry by {getContactOperator(callsignPopupContact) || 'Unknown'}
+                  </h5>
                   <div className="info-row">
                     <strong>Time (UTC):</strong> {formatUTCTime(callsignPopupContact.timestamp)}
                   </div>
-                  <div className="info-row">
-                    <strong>Band:</strong> {callsignPopupContact.frequency || '—'}
+                  <div className="info-row info-row-pair">
+                    <span><strong>Band:</strong> {callsignPopupContact.frequency || '—'}</span>
+                    <span><strong>Mode:</strong> {callsignPopupContact.mode || '—'}</span>
                   </div>
-                  <div className="info-row">
-                    <strong>Mode:</strong> {callsignPopupContact.mode || '—'}
-                  </div>
-                  <div className="info-row">
-                    <strong>Class:</strong> {callsignPopupContact.classSent || '—'}
-                  </div>
-                  <div className="info-row">
-                    <strong>Location:</strong> {callsignPopupContact.locationReceived || '—'}
-                  </div>
-                  <div className="info-row">
-                    <strong>Operator:</strong> {getContactOperator(callsignPopupContact) || '—'}
+                  <div className="info-row info-row-pair">
+                    <span><strong>Class:</strong> {callsignPopupContact.classSent || '—'}</span>
+                    <span><strong>Location:</strong> {callsignPopupContact.locationReceived || '—'}</span>
                   </div>
                   {callsignPopupContact.notes && (
                     <div className="info-row">

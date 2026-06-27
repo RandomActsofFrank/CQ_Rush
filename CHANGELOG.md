@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tablet-width layout shows only **ARRL Sections Progress (Click for Map)** — no operator/score bars or inline section grid
 - Mid-width layout order matches mobile: Active Operators → Add Contact → Logbook → sections map link; Notes column hidden in logbook (Notes field sits above Log Contact)
 - Logbook time/callsign columns have more spacing; UTC timestamps no longer overlap callsigns
-- Callsign hover popup from the logbook now includes the log entry details (time, band, mode, class, location, operator, notes)
+- Callsign hover popup from the logbook now includes the log entry details (time, band, mode, class, location, notes) with a compact layout and operator in the section title
 
 ## [1.1.1] - 2026-06-27
 
