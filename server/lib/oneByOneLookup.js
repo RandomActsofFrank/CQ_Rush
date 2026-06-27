@@ -191,7 +191,7 @@ async function fetchOneByOneHtml(url, fetchImpl) {
   try {
     response = await fetchImpl(url, {
       headers: {
-        'User-Agent': 'CQ-Rush/1.2.0 (Field Day logger; +https://github.com/RandomActsofFrank/CQ_Rush)',
+        'User-Agent': 'CQ-Rush/1.2.1 (Field Day logger; +https://github.com/RandomActsofFrank/CQ_Rush)',
         Accept: 'text/html'
       },
       signal: controller.signal

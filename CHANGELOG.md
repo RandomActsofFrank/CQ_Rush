@@ -5,6 +5,18 @@ All notable changes to CQ Rush are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-06-27
+
+### Added
+
+- **1×1 special event callsign lookup** — FCC 1×1 format (e.g. `W5T`, `K6T`) via [1x1callsigns.org](https://1x1callsigns.org/index.php/search-1x1-database), with operator name and grid from the requestor call (Callook)
+- **Local 1×1 cache** — Admin → Station Settings downloads reservations by date range; defaults to Field Day weekend ± 2 days
+- README sections for log export formats (Cabrillo, ADIF/LoTW/QRZ) and the **PI_Display** add-in
+
+### Changed
+
+- Callsign popup shows 1×1 event details (coordinator, requestor, requestor call, address)
+
 ## [1.2.0] - 2026-06-27
 
 ### Added
@@ -79,6 +91,7 @@ First public release of **CQ Rush** — rebranded and production-ready Field Day
 - Admin delete-all logs route and double-confirmation flow
 - Header date/time layout on desktop and mobile
 
+[1.2.1]: https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.2.1
 [1.2.0]: https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.2.0
 [1.1.1]: https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.1.1
 [1.1.0]: https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.1.0

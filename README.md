@@ -1,6 +1,6 @@
 # CQ Rush
 
-[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.2.0)
+[![Version](https://img.shields.io/badge/version-1.2.1-blue.svg)](https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.2.1)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
 
 **CQ Rush** is a free, open-source, donationware-suggested web app for **ARRL Field Day** contest logging. React frontend, Node.js/Express API, and PostgreSQL. Each club or operator configures their own entry name in the admin panel — the app brand is always CQ Rush.
@@ -288,7 +288,7 @@ See [Pi Display add-in](#pi-display-add-in) for a quick start; full docs in [PI_
 
 ## Release
 
-Current stable release: **[v1.2.0](https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.2.0)** — see [CHANGELOG.md](./CHANGELOG.md) for details.
+Current stable release: **[v1.2.1](https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.2.1)** — see [CHANGELOG.md](./CHANGELOG.md) for details.
 
 Before publishing docs or tagging a release, run the privacy regression check:
 
@@ -299,7 +299,7 @@ Before publishing docs or tagging a release, run the privacy regression check:
 ```bash
 git clone https://github.com/RandomActsofFrank/CQ_Rush.git
 cd CQ_Rush
-git checkout v1.2.0
+git checkout v1.2.1
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
