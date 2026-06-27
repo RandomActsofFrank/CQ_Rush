@@ -10,7 +10,7 @@ const { Pool } = require('pg');
 
 const prisma = require('./lib/prisma');
 const { serializeRecord, serializeRecords } = require('./lib/serialize');
-const { isLicenseExpired } = require('./lib/callsignExpiry');
+const { lookupCallookCallsign } = require('./lib/callookLookup');
 const {
   requireSiteAuth,
   requireAdminAuth,
@@ -44,6 +44,20 @@ const {
   saveStationSettings,
   ensureStationSettingsConfigured
 } = require('./lib/stationSettings');
+const {
+  isOneByOneCallsign,
+  lookupOneByOneCallsign,
+  normalizeDateInput,
+  isValidDateRange,
+  suggestedFieldDayDateRange
+} = require('./lib/oneByOneLookup');
+const {
+  getCacheMeta,
+  lookupCachedOneByOne,
+  startOneByOneCacheRefresh,
+  isOneByOneCacheRefreshRunning,
+  enrichReservationWithCallook
+} = require('./lib/oneByOneCache');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -140,60 +154,6 @@ async function updateDuplicateFlags() {
         data: { duplicateUser }
       });
     }
-  }
-}
-
-function gridToLocation(gridSquare) {
-  if (!gridSquare || gridSquare.length < 4) return null;
-
-  const grid = gridSquare.toUpperCase();
-  const field1 = grid.charCodeAt(0) - 65;
-  const field2 = grid.charCodeAt(1) - 65;
-  const square1 = parseInt(grid.charAt(2), 10);
-  const square2 = parseInt(grid.charAt(3), 10);
-
-  let lon = (field1 * 20) + (square1 * 2) - 180;
-  let lat = (field2 * 10) + square2 - 90;
-
-  if (grid.length >= 6) {
-    const subsquare1 = grid.charCodeAt(4) - 65;
-    const subsquare2 = grid.charCodeAt(5) - 65;
-    lon += (subsquare1 * 5 / 60);
-    lat += (subsquare2 * 2.5 / 60);
-  }
-
-  return { lat, lon };
-}
-
-async function getLocationFromCoords(lat, lon) {
-  try {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=6&addressdetails=1`,
-      {
-        headers: {
-          'User-Agent': 'HamRadioContestLogger/1.0'
-        }
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error('Reverse geocoding failed');
-    }
-
-    const data = await response.json();
-    if (data.error) {
-      return null;
-    }
-
-    const address = data.address || {};
-    return {
-      city: address.city || address.town || address.village || address.county || '',
-      state: address.state || address.province || '',
-      country: address.country || ''
-    };
-  } catch (error) {
-    console.error('Reverse geocoding error:', error);
-    return null;
   }
 }
 
@@ -743,71 +703,168 @@ app.get('/api/active-operators/cleanup', async (req, res) => {
   });
 });
 
-app.get('/api/lookup/:callsign', async (req, res) => {
-  const { callsign } = req.params;
+async function enrichOneByOneWithHolderLocation(result) {
+  if (!result.holderCallsign) {
+    return result;
+  }
+
+  if (result.grid && result.name) {
+    return result;
+  }
 
   try {
-    const response = await fetch(`https://callook.info/${callsign.toUpperCase()}/json`);
-    const data = await response.json();
+    const enriched = await enrichReservationWithCallook({
+      requestorCall: result.holderCallsign,
+      licenseName: result.name,
+      grid: result.grid,
+      city: result.city,
+      state: result.state,
+      country: result.country
+    });
 
-    if (data.status === 'VALID') {
-      const gridSquare = data.location?.gridsquare || '';
-      let locationData = {
-        city: '',
-        state: data.location?.state || '',
-        country: data.location?.country || ''
-      };
+    return {
+      ...result,
+      name: enriched.licenseName || result.name || '',
+      grid: enriched.grid || result.grid || '',
+      city: enriched.city || result.city || '',
+      state: enriched.state || result.state || '',
+      country: enriched.country || result.country || '',
+      holderName: enriched.licenseName || result.holderName || result.requestor || ''
+    };
+  } catch (error) {
+    console.error('1x1 holder Callook enrichment error:', error);
+    return result;
+  }
+}
 
-      if (gridSquare) {
-        const coords = gridToLocation(gridSquare);
-        if (coords) {
-          const detailedLocation = await getLocationFromCoords(coords.lat, coords.lon);
-          if (detailedLocation) {
-            locationData = {
-              city: detailedLocation.city,
-              state: detailedLocation.state || locationData.state,
-              country: detailedLocation.country || locationData.country
-            };
-          }
-        }
+app.get('/api/one-by-one/cache/status', requireAdminAuth, async (req, res) => {
+  try {
+    const meta = await getCacheMeta(prisma);
+    const defaults = suggestedFieldDayDateRange();
+    res.json({
+      ...meta,
+      running: isOneByOneCacheRefreshRunning(),
+      suggestedStartDate: defaults.startDate,
+      suggestedEndDate: defaults.endDate
+    });
+  } catch (error) {
+    console.error('1x1 cache status error:', error);
+    res.status(500).json({ error: 'Unable to read 1×1 cache status' });
+  }
+});
+
+app.post('/api/one-by-one/cache/refresh', requireAdminAuth, async (req, res) => {
+  if (isOneByOneCacheRefreshRunning()) {
+    return res.status(409).json({ error: 'A 1×1 cache refresh is already running.' });
+  }
+
+  const startDate = normalizeDateInput(req.body?.startDate);
+  const endDate = normalizeDateInput(req.body?.endDate);
+
+  if (!isValidDateRange(startDate, endDate)) {
+    return res.status(400).json({
+      error: 'startDate and endDate are required (YYYY-MM-DD) and startDate must be on or before endDate.'
+    });
+  }
+
+  startOneByOneCacheRefresh(prisma, fetch, { startDate, endDate }).catch((error) => {
+    console.error('1x1 cache refresh failed:', error);
+  });
+
+  res.status(202).json({
+    success: true,
+    message: `1×1 cache refresh started for ${startDate} – ${endDate}.`,
+    startDate,
+    endDate
+  });
+});
+
+app.get('/api/lookup/:callsign', async (req, res) => {
+  const callsign = req.params.callsign.toUpperCase();
+
+  try {
+    let result = null;
+
+    if (isOneByOneCallsign(callsign)) {
+      result = await lookupCachedOneByOne(prisma, callsign);
+      if (result) {
+        result = await enrichOneByOneWithHolderLocation(result);
       }
 
-      const expiryDate = data.otherInfo?.expiryDate || '';
-      const expired = isLicenseExpired(expiryDate);
+      if (!result?.success) {
+        try {
+          result = await lookupOneByOneCallsign(callsign, fetch);
+          if (result.success) {
+            result = await enrichOneByOneWithHolderLocation(result);
+          }
+        } catch (error) {
+          console.error('1x1 callsign lookup error:', error.message || error);
+        }
+      }
+    }
 
-      const callsignData = {
-        callsign: data.current?.callsign || callsign.toUpperCase(),
-        name: data.name || '',
-        grid: gridSquare,
-        city: locationData.city,
-        state: locationData.state,
-        country: locationData.country,
-        timestamp: new Date()
-      };
+    if (!result?.success) {
+      result = await lookupCallookCallsign(callsign);
+    }
 
-      await prisma.callsignLookup.upsert({
-        where: { callsign: callsignData.callsign },
-        create: callsignData,
-        update: callsignData
-      });
-
-      res.json({
-        success: true,
-        name: callsignData.name,
-        callsign: callsignData.callsign,
-        grid: callsignData.grid,
-        city: callsignData.city,
-        state: callsignData.state,
-        country: callsignData.country,
-        expiryDate,
-        isExpired: expired
-      });
-    } else {
+    if (!result?.success) {
       res.json({
         success: false,
         message: 'Callsign not found'
       });
+      return;
     }
+
+    if (result.cacheRecord) {
+      await prisma.callsignLookup.upsert({
+        where: { callsign: result.cacheRecord.callsign },
+        create: result.cacheRecord,
+        update: result.cacheRecord
+      });
+    } else {
+      await prisma.callsignLookup.upsert({
+        where: { callsign: result.callsign },
+        create: {
+          callsign: result.callsign,
+          name: result.name || result.eventName || '',
+          grid: result.grid || '',
+          city: result.city || '',
+          state: result.state || '',
+          country: result.country || '',
+          timestamp: new Date()
+        },
+        update: {
+          name: result.name || result.eventName || '',
+          grid: result.grid || '',
+          city: result.city || '',
+          state: result.state || '',
+          country: result.country || '',
+          timestamp: new Date()
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      name: result.name,
+      callsign: result.callsign,
+      grid: result.grid || '',
+      city: result.city || '',
+      state: result.state || '',
+      country: result.country || '',
+      expiryDate: result.expiryDate || '',
+      isExpired: !!result.isExpired,
+      source: result.source || 'callook',
+      specialEvent: !!result.specialEvent,
+      eventName: result.eventName || '',
+      coordinator: result.coordinator || '',
+      requestor: result.requestor || '',
+      requestorAddr: result.requestorAddr || '',
+      holderCallsign: result.holderCallsign || '',
+      holderName: result.holderName || '',
+      startDate: result.startDate || '',
+      endDate: result.endDate || ''
+    });
   } catch (error) {
     console.error('Callsign lookup error:', error);
     res.status(500).json({

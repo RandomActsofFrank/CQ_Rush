@@ -94,6 +94,28 @@ model CallsignLookup {
   @@map("callsign_lookups")
 }
 
+model OneByOneReservation {
+  id            Int      @id
+  callsign      String
+  coordinator   String?
+  eventName     String?  @map("event_name")
+  requestor     String?
+  requestorCall String?  @map("requestor_call")
+  requestorAddr String?  @map("requestor_addr")
+  startDate     DateTime @map("start_date") @db.Date
+  endDate       DateTime @map("end_date") @db.Date
+  licenseName   String?  @map("license_name")
+  grid          String?
+  city          String?
+  state         String?
+  country       String?
+  cachedAt      DateTime @default(now()) @map("cached_at")
+
+  @@index([callsign])
+  @@index([startDate, endDate])
+  @@map("one_by_one_reservations")
+}
+
 model Session {
   sid    String   @id
   sess   Json

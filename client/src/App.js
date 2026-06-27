@@ -2337,17 +2337,51 @@ function App() {
                   )}
                 </div>
               )}
-              {callsignPopupData.isExpired && (
+              {callsignPopupData.isExpired && !callsignPopupData.specialEvent && (
                 <div className="callsign-expired-notice">
                   FCC license expired{callsignPopupData.expiryDate ? ` on ${callsignPopupData.expiryDate}` : ''}.
+                </div>
+              )}
+              {callsignPopupData.specialEvent && (
+                <div className="callsign-special-event-notice">
+                  FCC 1×1 special event callsign
+                  {callsignPopupData.startDate && callsignPopupData.endDate
+                    ? ` (${callsignPopupData.startDate} – ${callsignPopupData.endDate} UTC)`
+                    : ''}.
                 </div>
               )}
               <div className="callsign-info">
                 {callsignPopupContact && (
                   <h5 className="callsign-popup-section-title">Callsign lookup</h5>
                 )}
+                {callsignPopupData.specialEvent && callsignPopupData.eventName && (
+                  <div className="info-row">
+                    <strong>Event:</strong> {callsignPopupData.eventName}
+                  </div>
+                )}
+                {callsignPopupData.specialEvent && callsignPopupData.coordinator && (
+                  <div className="info-row">
+                    <strong>Coordinator:</strong> {callsignPopupData.coordinator}
+                  </div>
+                )}
+                {callsignPopupData.specialEvent && callsignPopupData.requestor && (
+                  <div className="info-row">
+                    <strong>Requestor:</strong> {callsignPopupData.requestor}
+                  </div>
+                )}
+                {callsignPopupData.specialEvent && callsignPopupData.holderCallsign && (
+                  <div className="info-row">
+                    <strong>Requestor call:</strong> {callsignPopupData.holderCallsign}
+                  </div>
+                )}
+                {callsignPopupData.specialEvent && callsignPopupData.requestorAddr && (
+                  <div className="info-row">
+                    <strong>Requestor addr:</strong> {callsignPopupData.requestorAddr}
+                  </div>
+                )}
                 <div className="info-row">
-                  <strong>Name:</strong> {callsignPopupData.name || 'N/A'}
+                  <strong>{callsignPopupData.specialEvent ? 'Operator name' : 'Name'}:</strong>{' '}
+                  {callsignPopupData.name || 'N/A'}
                 </div>
                 <div className="info-row">
                   <strong>Grid:</strong> {callsignPopupData.grid || 'N/A'}

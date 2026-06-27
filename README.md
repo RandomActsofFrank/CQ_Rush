@@ -21,7 +21,7 @@ Branding assets live in `client/public/branding/` (icon, white icon, logo, banne
 ### Logging
 
 - Log QSOs with callsign, band, mode, class, ARRL section/location, and notes
-- Callsign lookup (via server proxy to Callook.info) with expired-license notice
+- Callsign lookup via server proxy — **Callook.info** for FCC licenses, plus **1×1 special event** callsigns (e.g. `K6T`) from [1x1callsigns.org](https://1x1callsigns.org/index.php/search-1x1-database) with holder location enrichment
 - Duplicate-entry detection and field validation (class, location, band, mode)
 - Real-time multi-operator coordination with band/mode conflict flags
 
@@ -34,7 +34,8 @@ Branding assets live in `client/public/branding/` (icon, white icon, logo, banne
 ### Admin
 
 - Logbook management with inline edit, soft delete, restore, and edit history
-- Station settings (entry class, location, power, bonuses) and Cabrillo export
+- Station settings (entry class, location, power, bonuses)
+- **Log export** (Admin → Export Logs) — see [Log export formats](#log-export-formats) below
 - Security & branding: club name, shared site password, or per-operator accounts (callsign + password + admin flag)
 
 ### Authentication
@@ -49,6 +50,41 @@ Two modes (configured in **Admin → Security & Branding**):
 
 
 No login is required until you enable site security or add operator accounts. The public display route (`/display`) bypasses site login.
+
+## Log export formats
+
+From **Admin → Export Logs**, CQ Rush generates contest and logbook files from your active QSOs and station settings:
+
+| Format | File | Use for |
+| ------ | ---- | ------- |
+| **Cabrillo** | `{callsign}.log` | Official ARRL Field Day entry — attach as dupe-sheet documentation at [field-day.arrl.org](https://field-day.arrl.org/fdentry.php) |
+| **ADIF** | `{callsign}.adi` | **LoTW** — sign with [TrustedQSL (TQSL)](https://lotw.arrl.org/lotw-help/sgnupload/) to produce a `.TQ8`, then upload; **QRZ Logbook** — import ADIF directly |
+
+The export panel also includes:
+
+- **Copy Full Summary** — Field Day entry fields (call used, section, class, exchange, claimed score, QSO totals, operators, bonuses) for pasting into the ARRL web form
+- **Open ARRL Entry Form**, **Open LoTW Upload**, and **Open QRZ Logbook** shortcuts
+
+Validation runs before download (station callsign, section, class, and active contacts required). Cabrillo is accepted in place of a dupe sheet but does **not** replace the official ARRL summary form.
+
+## Pi Display add-in
+
+The **[PI_Display](./PI_Display/)** add-in turns a **Raspberry Pi Zero W / Zero 2 W** into a dedicated kiosk for the public **`/display`** page (score, operators, recent contacts, map — same 5s polling as a browser tab).
+
+| Mode | What happens |
+| ---- | -------------- |
+| **First boot** | Pi creates Wi‑Fi hotspot **CQ-Rush-Display** (password `cqrush-setup`) |
+| **Setup portal** | Connect from a phone/laptop → `http://10.42.0.1:8080` → scan Wi‑Fi, set display URL (must include `/display`) |
+| **Display mode** | Pi joins your network and opens Chromium fullscreen on that URL |
+
+**Install options:**
+
+1. **Flash a pre-built image** (Linux host, pi-gen) — `cd PI_Display && sudo ./build-image.sh` → flash `PI_Display/build/cqrush-display-pi.img`
+2. **Install on existing Pi OS** — `sudo ./PI_Display/install-on-device.sh`
+
+Full hardware list, re-enter setup mode, config file paths, and systemd logs: **[PI_Display/README.md](./PI_Display/README.md)**.
+
+This add-in is **git-only** (not deployed to AWS). You can run the logger on one Pi (`deploy/pi/setup.sh`) and point the display at `http://localhost:3002/display`, or use a second Pi as the screen.
 
 ## Quick Start (Development)
 
@@ -120,6 +156,7 @@ First Docker build on a Pi can take **20–40 minutes**. The logger will be at `
 ├── prisma/              PostgreSQL schema and migrations
 ├── deploy/aws/          EC2 launch, deploy, and password-reset scripts
 ├── deploy/pi/           Raspberry Pi setup, update, and env templates
+├── PI_Display/          Pi Zero kiosk add-in for /display (Wi‑Fi setup + image build)
 ├── data/geographic/     County/state GeoJSON source data for section map
 ├── Dockerfile           Production container (client build + server)
 ├── docker-compose.yml   Local dev (db + optional full stack)
@@ -136,11 +173,16 @@ The app uses a small set of third-party services at runtime. Everything else (Fi
 | Service                                                            | URL                                                  | Used for                                                            | Called from                          | Auth                                                |
 | ------------------------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------ | --------------------------------------------------- |
 | **[Callook.info](https://callook.info)**                           | `https://callook.info/{CALLSIGN}/json`               | US amateur callsign name, grid, state, license expiry               | Server (`GET /api/lookup/:callsign`) | None (public JSON API)                              |
+| **[1x1callsigns.org](https://1x1callsigns.org/index.php/search-1x1-database)** | `https://www.1x1callsigns.org/1x1search.php?callsign={CALL}` | FCC 1×1 special event reservations (event name, holder callsign, dates) | Server (1×1 callsigns, e.g. `K6T`) | None; HTML scrape of W5YI database                  |
 | **[Nominatim](https://nominatim.org)** (OpenStreetMap)             | `https://nominatim.openstreetmap.org/reverse`        | City/state from grid-square coordinates when Callook returns a grid | Server (during callsign lookup)      | None; sends `User-Agent: HamRadioContestLogger/1.0` |
 | **[OpenStreetMap tiles](https://www.openstreetmap.org/copyright)** | `https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png` | Basemap in the callsign detail popup (Leaflet)                      | Browser (`App.js`)                   | None                                                |
 
 
-**Callsign lookup flow:** Browser → `GET /api/lookup/:callsign` → Callook → (optional) Nominatim reverse geocode → JSON to client. Successful lookups are cached in PostgreSQL (`callsign_lookups`).
+**Callsign lookup flow:** Browser → `GET /api/lookup/:callsign` → for **1×1 format** callsigns (`K`/`N`/`W` + digit + letter, e.g. `W5T`), check the **local 1×1 cache** first, then live [1x1callsigns.org](https://1x1callsigns.org/index.php/search-1x1-database); operator **name** and **grid** come from the requestor call via Callook; otherwise Callook → (optional) Nominatim reverse geocode → JSON to client. Successful lookups are cached in PostgreSQL (`callsign_lookups`).
+
+Admins can refresh reservations for a **date range** from **Admin → Station Settings → 1×1 Special Event Cache** (`POST /api/one-by-one/cache/refresh` with `startDate` and `endDate`). The server queries `1x1search.php?startd=…&endd=…`, then downloads each reservation’s detail page (`?byid=…`) and enriches requestor calls via Callook. Reservations are stored in `one_by_one_reservations`.
+
+Override the 1×1 search base URL with `ONE_BY_ONE_SEARCH_URL` if needed. Tune detail download pacing with `ONE_BY_ONE_REQUEST_DELAY_MS` (default 150) and `ONE_BY_ONE_DETAIL_CONCURRENCY` (default 3).
 
 **Links only (no API integration):**
 
@@ -209,7 +251,10 @@ When site login is enabled, other mutating `/api/`* routes require an authentica
 | **Operators & lookup**                      |                                                                                                          |
 | `GET/POST/PUT/DELETE /api/active-operators` | Operator heartbeats and band/mode status                                                                 |
 | `GET /api/active-operators/cleanup`         | Remove stale operators (2h+)                                                                             |
-| `GET /api/lookup/:callsign`                 | Proxied Callook lookup (+ Nominatim enrichment)                                                          |
+| `GET /api/lookup/:callsign`                 | Proxied Callook lookup (+ Nominatim enrichment); 1×1 special event via local cache then 1x1callsigns.org |
+| **1×1 cache (admin)**                       |                                                                                                          |
+| `GET /api/one-by-one/cache/status`          | Local 1×1 reservation cache status                                                                       |
+| `POST /api/one-by-one/cache/refresh`        | Start background download of 1×1 database (202 Accepted)                                                 |
 | **Log export (client)**                     | Cabrillo `.log` (ARRL Field Day), ADIF `.adi` (LoTW via TQSL, QRZ) — Admin → Export Logs                 |
 | **Configuration**                           |                                                                                                          |
 | `GET/PUT /api/station-settings`             | Field Day entry (class, section, power, bonuses)                                                         |
@@ -236,7 +281,9 @@ When site login is enabled, other mutating `/api/`* routes require an authentica
 
 | Add-in | Purpose |
 | ------ | ------- |
-| [PI_Display](./PI_Display/) | Raspberry Pi Zero external display — Wi‑Fi setup portal + kiosk browser for `/display` (git-only; build flashable `.img` on Linux) |
+| [PI_Display](./PI_Display/) | Raspberry Pi Zero external display — Wi‑Fi setup portal, network scanner, Chromium kiosk for `/display`, flashable `.img` build via pi-gen on Linux |
+
+See [Pi Display add-in](#pi-display-add-in) for a quick start; full docs in [PI_Display/README.md](./PI_Display/README.md).
 
 
 ## Release

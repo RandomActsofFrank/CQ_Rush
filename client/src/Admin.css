@@ -1195,6 +1195,94 @@
   background: #fff8e6;
 }
 
+.admin-one-by-one-panel {
+  margin-top: 24px;
+  padding: 16px 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.admin-one-by-one-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.admin-one-by-one-header h2 {
+  margin: 0 0 6px;
+  font-size: 1.1rem;
+}
+
+.admin-one-by-one-note {
+  margin: 0;
+  font-size: 13px;
+  color: #666;
+  max-width: 720px;
+}
+
+.admin-one-by-one-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.admin-one-by-one-dates label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #444;
+}
+
+.admin-one-by-one-dates input[type="date"] {
+  min-width: 180px;
+  padding: 8px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.admin-one-by-one-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.admin-one-by-one-stats div {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.admin-one-by-one-stats span {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.admin-one-by-one-stats strong {
+  font-size: 15px;
+  color: #222;
+}
+
+.admin-one-by-one-message,
+.admin-inline-success {
+  margin-top: 10px;
+  color: #155724;
+  font-size: 14px;
+}
+
+.admin-inline-error {
+  margin-top: 10px;
+  color: #842029;
+  font-size: 14px;
+}
+
 .admin-login-page {
   min-height: calc(100vh - 120px);
 }

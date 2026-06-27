@@ -1,4 +1,8 @@
 export function buildLicenseNotice(lookupData, callsign) {
+  if (lookupData?.specialEvent) {
+    return null;
+  }
+
   if (!lookupData?.isExpired) {
     return null;
   }

@@ -10,6 +10,7 @@ import {
 import StationSettingsPanel from './StationSettingsPanel';
 import SecuritySettingsPanel from './SecuritySettingsPanel';
 import CabrilloExportPanel from './CabrilloExportPanel';
+import OneByOneCachePanel from './OneByOneCachePanel';
 import AdminLogin from './AdminLogin';
 import { useAuth } from './AuthContext';
 
@@ -347,6 +348,7 @@ function Admin() {
       ) : activeTab === 'settings' ? (
         <div className="admin-content admin-content-settings">
           <StationSettingsPanel contactCount={contacts.filter((c) => c.deleted !== 'Y').length} />
+          <OneByOneCachePanel />
         </div>
       ) : (
       <>
