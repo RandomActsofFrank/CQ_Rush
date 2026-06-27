@@ -1938,6 +1938,12 @@ function App() {
                             ref={callsignInputRef}
                             tabIndex={1}
                             value={formData.callsign}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Tab' && e.shiftKey) {
+                                e.preventDefault();
+                                document.getElementById('log-contact-submit')?.focus();
+                              }
+                            }}
                             onChange={(e) => {
                               const upperValue = e.target.value.toUpperCase();
                               setFieldErrors((prev) => ({ ...prev, callsign: undefined }));
@@ -2119,28 +2125,35 @@ function App() {
                           disabled={!operator.callsign}
                         />
                       </div>
+                    </div>
 
-                      <div className="form-group">
-                        <label htmlFor="notes">Notes</label>
-                        <input
-                          type="text"
-                          id="notes"
-                          name="notes"
-                          tabIndex={-1}
-                          value={formData.notes}
-                          onChange={handleInputChange}
-                          placeholder="Optional notes"
-                          className={!operator.callsign ? 'disabled-field' : ''}
-                          disabled={!operator.callsign}
-                        />
-                      </div>
+                    <div className="form-group form-notes-field">
+                      <label htmlFor="notes">Notes</label>
+                      <input
+                        type="text"
+                        id="notes"
+                        name="notes"
+                        tabIndex={4}
+                        value={formData.notes}
+                        onChange={handleInputChange}
+                        placeholder="Optional notes"
+                        className={!operator.callsign ? 'disabled-field' : ''}
+                        disabled={!operator.callsign}
+                      />
                     </div>
 
                     <button 
-                      type="submit" 
-                      tabIndex={4}
+                      type="submit"
+                      id="log-contact-submit"
+                      tabIndex={5}
                       className={`btn ${!operator.callsign || !formData.frequency || !formData.mode ? 'btn-disabled' : ''}`}
                       disabled={!operator.callsign || !formData.frequency || !formData.mode}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Tab' && !e.shiftKey) {
+                          e.preventDefault();
+                          focusLoggingStart();
+                        }
+                      }}
                     >
                       Log Contact
                     </button>

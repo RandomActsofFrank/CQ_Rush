@@ -13,13 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Log contact tab order: **Callsign → Class → Location → Log Contact** (loops back to Callsign after each log). Band and Mode are click-only (not in the tab cycle); Notes and auto-populated fields are skipped
+- Log contact tab order: **Callsign → Class → Location → Notes → Log Contact** (loops back to Callsign; Band/Mode click-only)
 
 ### Fixed
 
 - Narrow-screen layout no longer hides the logbook and log form behind the stats/sections panel
-- Tablet-width layout shows only **ARRL Sections Progress (Click for Map)** — operator/score bars and the inline section grid are hidden to prevent overlap
-- Logbook time column no longer truncates UTC timestamps
+- Tablet-width layout shows only **ARRL Sections Progress (Click for Map)** — no operator/score bars or inline section grid
+- Mid-width layout order matches mobile: Active Operators → Add Contact → Logbook → sections map link; Notes column hidden in logbook (Notes field sits above Log Contact)
+- Logbook time/callsign columns have more spacing; UTC timestamps no longer overlap callsigns
 - Callsign hover popup from the logbook now includes the log entry details (time, band, mode, class, location, operator, notes)
 
 ## [1.1.1] - 2026-06-27

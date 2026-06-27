@@ -1491,11 +1491,12 @@ code {
   height: fit-content;
 }
 
-.form-card h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
+.form-notes-field {
+  margin-bottom: 12px;
+}
+
+.form-card .btn {
+  margin-top: 0;
 }
 
 .form-header {
@@ -2118,9 +2119,9 @@ code {
 }
 
 /* Column widths for better space distribution */
-.table th:nth-child(1), .table td:nth-child(1) { width: 14%; } /* Time */
-.table th:nth-child(2), .table td:nth-child(2) { width: 8%; }  /* Callsign */
-.table th:nth-child(3), .table td:nth-child(3) { width: 16%; } /* Name */
+.table th:nth-child(1), .table td:nth-child(1) { width: 16%; } /* Time */
+.table th:nth-child(2), .table td:nth-child(2) { width: 10%; }  /* Callsign */
+.table th:nth-child(3), .table td:nth-child(3) { width: 15%; } /* Name */
 .table th:nth-child(4), .table td:nth-child(4) { width: 6%; }  /* Band */
 .table th:nth-child(5), .table td:nth-child(5) { width: 6%; }  /* Mode */
 .table th:nth-child(6), .table td:nth-child(6) { width: 6%; }  /* Class */
@@ -2200,9 +2201,15 @@ code {
 /* Prevent time column from wrapping */
 .table th:nth-child(1), .table td:nth-child(1) { 
   white-space: nowrap; 
-  min-width: 10.75rem;
+  min-width: 11.5rem;
   overflow: visible;
   text-overflow: clip;
+  padding-right: 16px;
+}
+
+.table th:nth-child(2), .table td:nth-child(2) {
+  padding-left: 6px;
+  min-width: 4.75rem;
 }
 
 .table th,
@@ -2260,16 +2267,16 @@ code {
   }
 
   .left-column,
-  .right-column {
+  .right-column,
+  .stats-sections-panel,
+  .top-row {
     display: contents;
   }
 
-  .logs-card {
+  .operators-card {
     order: 1;
-    flex: none;
     width: 100%;
-    min-height: 240px;
-    max-height: min(45vh, 420px);
+    padding: 10px 12px;
   }
 
   .form-card {
@@ -2277,26 +2284,43 @@ code {
     width: 100%;
   }
 
-  .stats-sections-panel {
+  .logs-card {
     order: 3;
-    max-height: min(52vh, 560px);
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    border: 1px solid #e1e5e9;
-    border-radius: 8px;
-    background: #fff;
-    padding: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    flex: none;
+    width: 100%;
+    min-height: 240px;
+    max-height: min(45vh, 420px);
+  }
+
+  .card.sections-card.desktop-only {
+    order: 4;
+    width: 100%;
+  }
+
+  .stats-sections-panel {
+    order: 4;
+    max-height: none;
+    overflow: visible;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
     flex: none;
     height: auto;
     width: 100%;
   }
 
   .stats-sections-panel .top-row {
-    grid-template-columns: 1fr;
-    gap: 6px;
-    flex-shrink: 0;
+    display: contents;
+  }
+
+  .stats-sections-panel .score-card {
+    display: none !important;
+  }
+
+  .stats-sections-panel .sections-grid {
+    display: none !important;
   }
 
   .stats-sections-panel .operators-card,
@@ -2403,20 +2427,27 @@ code {
   }
 }
 
-/* Tablet / in-between: sections map link only (no operator/score bars or section grid) */
+/* Tablet / in-between: map link only, hide notes column in logbook */
 @media (max-width: 1200px) and (min-width: 769px) {
-  .stats-sections-panel .top-row {
-    display: none !important;
+  .table th:nth-child(9),
+  .table td:nth-child(9) {
+    display: none;
   }
 
-  .stats-sections-panel .sections-grid {
-    display: none !important;
+  .table th:nth-child(1), .table td:nth-child(1) {
+    width: 19%;
+    min-width: 11.5rem;
+    padding-right: 18px;
   }
 
-  .stats-sections-panel {
-    max-height: none;
-    overflow: visible;
-    padding: 0;
+  .table th:nth-child(2), .table td:nth-child(2) {
+    width: 12%;
+    min-width: 5rem;
+    padding-left: 8px;
+  }
+
+  .table th:nth-child(3), .table td:nth-child(3) {
+    width: 22%;
   }
 
   .stats-sections-panel .card.sections-card {
