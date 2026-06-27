@@ -121,8 +121,6 @@ function App() {
   // ARRL Sections Map popup state
   const [showARRLMap, setShowARRLMap] = useState(false);
 
-  
-
   const modes = ['CW', 'Phone', 'Digital'];
   
   const frequencyBands = [
@@ -1842,10 +1840,23 @@ function App() {
                   <div className="form-header">
                     <h2>Add New Contact</h2>
                     <div className="form-exchange-display">
-                      {projectedScore.exchange ? (
-                        <>Your Exchange: <strong>{projectedScore.exchange}</strong></>
+                      {stationSettings.callsign ? (
+                        <span className="form-exchange-callsign">
+                          Callsign: <strong>{stationSettings.callsign}</strong>
+                        </span>
                       ) : (
-                        <span className="form-exchange-placeholder">Set class &amp; section in Admin → Station Settings</span>
+                        <span className="form-exchange-placeholder">
+                          Callsign: set in Admin → Station Settings
+                        </span>
+                      )}
+                      {projectedScore.exchange ? (
+                        <span className="form-exchange-value">
+                          Your Exchange: <strong>{projectedScore.exchange}</strong>
+                        </span>
+                      ) : (
+                        <span className="form-exchange-placeholder">
+                          Your Exchange: set class &amp; section in Admin → Station Settings
+                        </span>
                       )}
                     </div>
                     <div className="operator-field">
@@ -2170,7 +2181,8 @@ function App() {
                     onClick={() => setShowARRLMap(true)}
                     title="Click to view sections map"
                   >
-                    ARRL Sections Progress
+                    ARRL Sections Progress{' '}
+                    <span className="sections-progress-map-hint">(Click for Map)</span>
                   </h3>
                   <div className="sections-grid">
                     {Object.entries(sectionsByArea).map(([area, sections]) => {
@@ -2372,6 +2384,7 @@ function App() {
                 <button 
                   className="popup-close-btn"
                   onClick={() => setShowARRLMap(false)}
+                  type="button"
                 >
                   ×
                 </button>
