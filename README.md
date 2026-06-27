@@ -232,6 +232,12 @@ When site login is enabled, other mutating `/api/`* routes require an authentica
 | AWS EC2      | [DEPLOY_AWS.md](./DEPLOY_AWS.md)                   |
 | Raspberry Pi | [DEPLOY_RASPBERRY_PI.md](./DEPLOY_RASPBERRY_PI.md) |
 
+## Add-ins
+
+| Add-in | Purpose |
+| ------ | ------- |
+| [PI_Display](./PI_Display/) | Raspberry Pi Zero external display — Wi‑Fi setup portal + kiosk browser for `/display` (git-only; build flashable `.img` on Linux) |
+
 
 ## Release
 

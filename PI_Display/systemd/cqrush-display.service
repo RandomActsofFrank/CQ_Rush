@@ -1,0 +1,19 @@
+[Unit]
+Description=CQ Rush Display manager (setup portal or kiosk prep)
+After=network-online.target cqrush-display-x.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=CQRUSH_DISPLAY_CONFIG=/etc/cqrush-display/config.json
+Environment=CQRUSH_DISPLAY_AP_SSID=CQ-Rush-Display
+Environment=CQRUSH_DISPLAY_AP_PASSWORD=cqrush-setup
+Environment=CQRUSH_WIFI_IFACE=wlan0
+Environment=CQRUSH_SETUP_PORT=8080
+WorkingDirectory=/opt/cqrush-display
+ExecStart=/opt/cqrush-display/display-manager.sh
+Restart=always
+RestartSec=4
+
+[Install]
+WantedBy=multi-user.target

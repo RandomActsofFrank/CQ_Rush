@@ -1,0 +1,7 @@
+build/
+*.img
+*.img.xz
+*.iso
+pi-gen/
+.work/
+pi-gen-stage/files/

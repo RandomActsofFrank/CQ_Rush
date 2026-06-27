@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CQ Rush Display Setup</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='setup.css') }}">
+</head>
+<body>
+  <main class="setup-card">
+    <header>
+      <h1>CQ Rush Display</h1>
+      <p class="subtitle">Configure Wi‑Fi and the public display page for this Pi.</p>
+    </header>
+
+    <section class="info-box">
+      <p><strong>Setup network:</strong> {{ ap_ssid }}</p>
+      <p><strong>Password:</strong> {{ ap_password }}</p>
+      <p class="hint">Your phone or laptop must stay connected to this Pi hotspot while you save settings.</p>
+    </section>
+
+    <form id="setup-form">
+      <label for="display_url">Display page URL</label>
+      <input
+        id="display_url"
+        name="display_url"
+        type="url"
+        required
+        placeholder="https://your-server.example.com/display"
+        value="{{ config.display_url or default_display_url }}"
+      >
+      <p class="field-hint">Use the CQ Rush <code>/display</code> route. The page refreshes itself every few seconds.</p>
+
+      <div class="wifi-header">
+        <label>Wi‑Fi network</label>
+        <button type="button" id="scan-btn" class="btn-secondary">Scan</button>
+      </div>
+
+      <div id="wifi-status" class="status" aria-live="polite">Scanning for networks…</div>
+      <div id="wifi-list" class="wifi-list" role="radiogroup" aria-label="Available Wi‑Fi networks"></div>
+
+      <label for="wifi_password">Wi‑Fi password</label>
+      <input id="wifi_password" name="wifi_password" type="password" autocomplete="off" placeholder="Leave blank for open networks">
+
+      <button type="submit" class="btn-primary" id="save-btn">Save and start display</button>
+      <p id="form-message" class="status" aria-live="polite"></p>
+    </form>
+  </main>
+
+  <script src="{{ url_for('static', filename='setup.js') }}"></script>
+</body>
+</html>

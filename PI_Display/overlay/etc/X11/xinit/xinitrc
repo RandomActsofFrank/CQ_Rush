@@ -1,0 +1,15 @@
+#!/bin/sh
+# X session for CQ Rush Pi Display kiosk.
+
+if [ -z "$DISPLAY" ]; then
+  export DISPLAY=:0
+fi
+
+unclutter -idle 0.5 -root &
+openbox-session &
+
+while [ ! -f /run/cqrush-display-ready ]; do
+  sleep 2
+done
+
+exec /opt/cqrush-display/kiosk.sh

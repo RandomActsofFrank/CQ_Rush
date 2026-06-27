@@ -2220,17 +2220,49 @@ code {
 
 /* Responsive adjustments */
 @media (max-width: 1200px) {
-  .logs-score-container {
-    flex-direction: column;
+  body {
+    overflow: auto;
   }
 
-  .right-column {
-    min-width: 0;
-    width: 100%;
+  .app-container {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .main-content,
+  .logs-section {
+    overflow: visible;
     flex: none;
   }
 
+  .logs-score-container {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    gap: 12px;
+  }
+
+  .left-column,
+  .right-column {
+    display: contents;
+  }
+
+  .logs-card {
+    order: 1;
+    flex: none;
+    width: 100%;
+    min-height: 240px;
+    max-height: min(45vh, 420px);
+  }
+
+  .form-card {
+    order: 2;
+    width: 100%;
+  }
+
   .stats-sections-panel {
+    order: 3;
     max-height: min(52vh, 560px);
     overflow-y: auto;
     overflow-x: hidden;
@@ -2242,6 +2274,7 @@ code {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     flex: none;
     height: auto;
+    width: 100%;
   }
 
   .stats-sections-panel .top-row {

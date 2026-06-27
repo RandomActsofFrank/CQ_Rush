@@ -1,0 +1,23 @@
+[Unit]
+Description=CQ Rush Display X server (kiosk)
+After=network-online.target
+Wants=network-online.target
+Conflicts=getty@tty1.service
+
+[Service]
+User=pi
+Group=pi
+Environment=DISPLAY=:0
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+ExecStart=/usr/bin/startx /etc/X11/xinit/xinitrc -- /usr/bin/X vt1 -keeptty -nolisten tcp
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
