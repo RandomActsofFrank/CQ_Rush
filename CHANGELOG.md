@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Narrow-screen layout no longer hides the logbook and log form behind the stats/sections panel
+- Tablet-width layout shows only **ARRL Sections Progress (Click for Map)** — operator/score bars and the inline section grid are hidden to prevent overlap
+- Logbook time column no longer truncates UTC timestamps
+- Callsign hover popup from the logbook now includes the log entry details (time, band, mode, class, location, operator, notes)
 
 ## [1.1.1] - 2026-06-27
 

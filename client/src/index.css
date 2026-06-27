@@ -1830,6 +1830,21 @@ code {
   margin-bottom: 16px;
 }
 
+.callsign-log-details {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.callsign-popup-section-title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #558303;
+}
+
 .info-row {
   margin-bottom: 8px;
   font-size: 14px;
@@ -2103,9 +2118,9 @@ code {
 }
 
 /* Column widths for better space distribution */
-.table th:nth-child(1), .table td:nth-child(1) { width: 12%; } /* Time */
+.table th:nth-child(1), .table td:nth-child(1) { width: 14%; } /* Time */
 .table th:nth-child(2), .table td:nth-child(2) { width: 8%; }  /* Callsign */
-.table th:nth-child(3), .table td:nth-child(3) { width: 18%; } /* Name */
+.table th:nth-child(3), .table td:nth-child(3) { width: 16%; } /* Name */
 .table th:nth-child(4), .table td:nth-child(4) { width: 6%; }  /* Band */
 .table th:nth-child(5), .table td:nth-child(5) { width: 6%; }  /* Mode */
 .table th:nth-child(6), .table td:nth-child(6) { width: 6%; }  /* Class */
@@ -2135,7 +2150,7 @@ code {
     white-space: nowrap;
   }
 
-  .table th:nth-child(1), .table td:nth-child(1) { min-width: 64px; }
+  .table th:nth-child(1), .table td:nth-child(1) { min-width: 10.75rem; }
   .table th:nth-child(2), .table td:nth-child(2) { min-width: 56px; }
   .table th:nth-child(3), .table td:nth-child(3) { display: none; }
   .table th:nth-child(4), .table td:nth-child(4) { min-width: 40px; }
@@ -2185,8 +2200,9 @@ code {
 /* Prevent time column from wrapping */
 .table th:nth-child(1), .table td:nth-child(1) { 
   white-space: nowrap; 
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 10.75rem;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .table th,
@@ -2384,6 +2400,39 @@ code {
   .stats-sections-panel .sections-grid {
     overflow: visible;
     flex: none;
+  }
+}
+
+/* Tablet / in-between: sections map link only (no operator/score bars or section grid) */
+@media (max-width: 1200px) and (min-width: 769px) {
+  .stats-sections-panel .top-row {
+    display: none !important;
+  }
+
+  .stats-sections-panel .sections-grid {
+    display: none !important;
+  }
+
+  .stats-sections-panel {
+    max-height: none;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .stats-sections-panel .card.sections-card {
+    padding: 0 !important;
+    background: transparent;
+    box-shadow: none;
+    border: none;
+  }
+
+  .stats-sections-panel .sections-progress-title {
+    margin: 0;
+    padding: 14px 16px;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   }
 }
 

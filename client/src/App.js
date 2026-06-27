@@ -102,6 +102,7 @@ function App() {
   const [callsignPopupAnchor, setCallsignPopupAnchor] = useState({ x: 0, y: 0 });
   const [callsignPopupStyle, setCallsignPopupStyle] = useState({ left: 0, top: 0 });
   const [callsignPopupPlaced, setCallsignPopupPlaced] = useState(false);
+  const [callsignPopupContact, setCallsignPopupContact] = useState(null);
   const callsignPopupRef = useRef(null);
   const repositionCallsignPopupRef = useRef(() => {});
   const [lastCallsign, setLastCallsign] = useState('');
@@ -463,12 +464,13 @@ function App() {
     }
   };
 
-    const showCallsignDetails = async (callsign, event) => {
+    const showCallsignDetails = async (callsign, event, contact = null) => {
     if (!callsign) return;
 
     const upperCallsign = callsign.toUpperCase();
     const anchor = { x: event.clientX, y: event.clientY };
     setCallsignPopupAnchor(anchor);
+    setCallsignPopupContact(contact);
 
     // Check cache first
     if (callsignCache[upperCallsign]) {
@@ -1819,14 +1821,14 @@ function App() {
                               <td>{formatUTCTime(contact.timestamp)}</td>
                               <td 
                                 className="callsign-cell"
-                                onMouseEnter={(e) => showCallsignDetails(contact.callsign, e)}
+                                onMouseEnter={(e) => showCallsignDetails(contact.callsign, e, contact)}
                                 onMouseLeave={() => setShowCallsignPopup(false)}
                               >
                                 <strong>{contact.callsign}</strong>
                               </td>
                               <td 
                                 className="name-cell"
-                                onMouseEnter={(e) => showCallsignDetails(contact.callsign, e)}
+                                onMouseEnter={(e) => showCallsignDetails(contact.callsign, e, contact)}
                                 onMouseLeave={() => setShowCallsignPopup(false)}
                               >
                                 {contact.name || '-'}
@@ -1978,7 +1980,7 @@ function App() {
                           placeholder="Auto-populated from callsign"
                           className={`readonly-field ${!operator.callsign ? 'disabled-field' : ''}`}
                           disabled={!operator.callsign}
-                          onMouseEnter={(e) => formData.callsign && showCallsignDetails(formData.callsign, e)}
+                          onMouseEnter={(e) => formData.callsign && showCallsignDetails(formData.callsign, e, null)}
                           onMouseLeave={() => setShowCallsignPopup(false)}
                         />
                       </div>
@@ -2270,7 +2272,10 @@ function App() {
       {showCallsignPopup && callsignPopupData && (
         <div 
           className="callsign-popup-overlay"
-          onClick={() => setShowCallsignPopup(false)}
+          onClick={() => {
+            setShowCallsignPopup(false);
+            setCallsignPopupContact(null);
+          }}
         >
           <div 
             className="callsign-popup-content"
@@ -2286,19 +2291,53 @@ function App() {
               <h4>{callsignPopupData.callsign}</h4>
               <button 
                 className="popup-close-btn"
-                onClick={() => setShowCallsignPopup(false)}
+                onClick={() => {
+                  setShowCallsignPopup(false);
+                  setCallsignPopupContact(null);
+                }}
               >
                 ×
               </button>
             </div>
             
             <div className="callsign-popup-body">
+              {callsignPopupContact && (
+                <div className="callsign-log-details">
+                  <h5 className="callsign-popup-section-title">This log entry</h5>
+                  <div className="info-row">
+                    <strong>Time (UTC):</strong> {formatUTCTime(callsignPopupContact.timestamp)}
+                  </div>
+                  <div className="info-row">
+                    <strong>Band:</strong> {callsignPopupContact.frequency || '—'}
+                  </div>
+                  <div className="info-row">
+                    <strong>Mode:</strong> {callsignPopupContact.mode || '—'}
+                  </div>
+                  <div className="info-row">
+                    <strong>Class:</strong> {callsignPopupContact.classSent || '—'}
+                  </div>
+                  <div className="info-row">
+                    <strong>Location:</strong> {callsignPopupContact.locationReceived || '—'}
+                  </div>
+                  <div className="info-row">
+                    <strong>Operator:</strong> {getContactOperator(callsignPopupContact) || '—'}
+                  </div>
+                  {callsignPopupContact.notes && (
+                    <div className="info-row">
+                      <strong>Notes:</strong> {callsignPopupContact.notes}
+                    </div>
+                  )}
+                </div>
+              )}
               {callsignPopupData.isExpired && (
                 <div className="callsign-expired-notice">
                   FCC license expired{callsignPopupData.expiryDate ? ` on ${callsignPopupData.expiryDate}` : ''}.
                 </div>
               )}
               <div className="callsign-info">
+                {callsignPopupContact && (
+                  <h5 className="callsign-popup-section-title">Callsign lookup</h5>
+                )}
                 <div className="info-row">
                   <strong>Name:</strong> {callsignPopupData.name || 'N/A'}
                 </div>
