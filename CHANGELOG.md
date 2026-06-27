@@ -5,11 +5,19 @@ All notable changes to CQ Rush are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2026-06-27
 
 ### Added
 
 - **PI_Display** add-in — Raspberry Pi Zero kiosk image builder and setup portal for the public `/display` page (Wi‑Fi hotspot setup, network scanner, flashable `.img` build via pi-gen)
+
+### Changed
+
+- Log contact tab order is now Callsign → Class → Location → Notes (Band and Mode follow; auto-populated fields are skipped)
+
+### Fixed
+
+- Narrow-screen layout no longer hides the logbook and log form behind the stats/sections panel
 
 ## [1.1.1] - 2026-06-27
 
@@ -67,6 +75,7 @@ First public release of **CQ Rush** — rebranded and production-ready Field Day
 - Admin delete-all logs route and double-confirmation flow
 - Header date/time layout on desktop and mobile
 
+[1.2.0]: https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.2.0
 [1.1.1]: https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.1.1
 [1.1.0]: https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.1.0
 [1.0.0]: https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.0.0

@@ -1905,6 +1905,7 @@ function App() {
                             type="text"
                             id="callsign"
                             name="callsign"
+                            tabIndex={1}
                             value={formData.callsign}
                             onChange={(e) => {
                               const upperValue = e.target.value.toUpperCase();
@@ -1942,6 +1943,7 @@ function App() {
                           type="text"
                           id="name"
                           name="name"
+                          tabIndex={-1}
                           value={formData.name}
                           readOnly
                           placeholder="Auto-populated from callsign"
@@ -1960,6 +1962,7 @@ function App() {
                         <select
                           id="frequency"
                           name="frequency"
+                          tabIndex={5}
                           value={formData.frequency}
                           onChange={handleInputChange}
                           disabled={!operator.callsign}
@@ -1981,6 +1984,7 @@ function App() {
                         <select
                           id="mode"
                           name="mode"
+                          tabIndex={6}
                           value={formData.mode}
                           onChange={handleInputChange}
                           disabled={!operator.callsign}
@@ -2016,6 +2020,7 @@ function App() {
                             type="text"
                             id="classSent"
                             name="classSent"
+                            tabIndex={2}
                             value={formData.classSent}
                             onChange={(e) => {
                               const upperValue = e.target.value.toUpperCase();
@@ -2045,6 +2050,7 @@ function App() {
                             type="text"
                             id="locationReceived"
                             name="locationReceived"
+                            tabIndex={3}
                             value={formData.locationReceived}
                             onChange={(e) => {
                               const upperValue = e.target.value.toUpperCase();
@@ -2074,6 +2080,7 @@ function App() {
                           type="text"
                           id="callSignArea"
                           name="callSignArea"
+                          tabIndex={-1}
                           value={formData.callSignArea}
                           readOnly
                           placeholder="Auto-populated from location"
@@ -2088,6 +2095,7 @@ function App() {
                           type="text"
                           id="notes"
                           name="notes"
+                          tabIndex={4}
                           value={formData.notes}
                           onChange={handleInputChange}
                           placeholder="Optional notes"
@@ -2099,6 +2107,7 @@ function App() {
 
                     <button 
                       type="submit" 
+                      tabIndex={7}
                       className={`btn ${!operator.callsign || !formData.frequency || !formData.mode ? 'btn-disabled' : ''}`}
                       disabled={!operator.callsign || !formData.frequency || !formData.mode}
                     >

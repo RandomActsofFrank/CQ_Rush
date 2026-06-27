@@ -4,7 +4,7 @@ export const COPYRIGHT_HOLDER = 'Frank Kostyun';
 export const COPYRIGHT_YEAR = '2026';
 export const COPYRIGHT_LINE = `${APP_NAME} © ${COPYRIGHT_HOLDER} ${COPYRIGHT_YEAR}`;
 export const DONATION_URL = 'https://www.paypal.com/donate/?hosted_button_id=8FMQ97AZPEPJG';
-export const APP_VERSION = '1.1.1';
+export const APP_VERSION = '1.2.0';
 export const GITHUB_URL = 'https://github.com/RandomActsofFrank/CQ_Rush';
 
 export const BRAND_ASSETS = {
