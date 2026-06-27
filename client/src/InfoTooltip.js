@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-function InfoTooltip({ text }) {
+function InfoTooltip({ text, tabIndex = -1 }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const [positioned, setPositioned] = useState(false);
@@ -75,6 +75,7 @@ function InfoTooltip({ text }) {
         className="info-tooltip-trigger"
         aria-label="Show help"
         aria-expanded={open}
+        tabIndex={tabIndex}
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();

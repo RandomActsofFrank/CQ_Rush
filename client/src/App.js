@@ -2110,6 +2110,7 @@ function App() {
 
               {/* Right Column - Score and Sections */}
               <div className="right-column">
+                <div className="stats-sections-panel">
                 {/* Top Row - Active Operators and Score */}
                 <div className="top-row">
                   {/* Active Operators Box */}
@@ -2219,6 +2220,7 @@ function App() {
                       );
                     })}
                   </div>
+                </div>
                 </div>
               </div>
             </div>
