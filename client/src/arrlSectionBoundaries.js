@@ -1,9 +1,6 @@
-// ARRL section boundary rules for US-only map rendering.
+// ARRL section boundary rules for US county map rendering.
 // Source: https://www.arrl.org/section-boundaries
-//
-// Rule shape:
-// - { section: 'EPA', state: 'PA', counties: ['Adams', ...] }
-// - { section: 'DE', wholeState: 'DE' }
+// Canadian sections use bundled GeoJSON from scripts/build-canada-section-geojson.js.
 
 export const ARRL_SECTION_RULES = [
   // Atlantic Division
@@ -387,7 +384,23 @@ export const ARRL_SECTION_NAMES = {
   WTX: 'West Texas',
   WWA: 'Western Washington',
   WV: 'West Virginia',
-  WY: 'Wyoming'
+  WY: 'Wyoming',
+  // Canadian RAC / ARRL Field Day sections
+  AB: 'Alberta',
+  BC: 'British Columbia',
+  GH: 'Golden Horseshoe',
+  MB: 'Manitoba',
+  NB: 'New Brunswick',
+  NL: 'Newfoundland/Labrador',
+  NS: 'Nova Scotia',
+  ONE: 'Ontario East',
+  ONN: 'Ontario North',
+  ONS: 'Ontario South',
+  PE: 'Prince Edward Island',
+  QC: 'Quebec',
+  SK: 'Saskatchewan',
+  TER: 'Territories',
+  YT: 'Yukon'
 };
 
 const normalizeCountyName = (value = '') =>

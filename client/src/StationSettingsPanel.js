@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { apiFetch } from './api';
+import { apiFetch, fetchContests, setActiveContest } from './api';
+import { useAuth } from './AuthContext';
+import { getContestDefinition } from './contests/registry';
 import {
   ARRL_VALID_SECTIONS,
   BONUS_GROUPS,
@@ -14,31 +16,72 @@ import {
 } from './fieldDayRules';
 
 function StationSettingsPanel({ contactCount = 0 }) {
+  const { status, refreshStatus } = useAuth();
   const [settings, setSettings] = useState(DEFAULT_STATION_SETTINGS);
+  const [contests, setContests] = useState([]);
+  const [activeContestSlug, setActiveContestSlug] = useState('field-day');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [switchingContest, setSwitchingContest] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
-    loadSettings();
+    loadPanelData();
   }, []);
 
-  const loadSettings = async () => {
+  useEffect(() => {
+    if (status.activeContest?.slug) {
+      setActiveContestSlug(status.activeContest.slug);
+    }
+  }, [status.activeContest?.slug]);
+
+  const loadPanelData = async () => {
     setLoading(true);
     setError('');
     try {
-      const response = await apiFetch('/api/station-settings');
-      if (response.ok) {
-        setSettings(normalizeStationSettings(await response.json()));
+      const [settingsRes, contestsList] = await Promise.all([
+        apiFetch('/api/station-settings'),
+        fetchContests().catch(() => [])
+      ]);
+
+      if (settingsRes.ok) {
+        setSettings(normalizeStationSettings(await settingsRes.json()));
       } else {
         setError('Unable to load station settings.');
+      }
+
+      setContests(contestsList);
+      if (status.activeContest?.slug) {
+        setActiveContestSlug(status.activeContest.slug);
       }
     } catch (loadError) {
       console.error('Error loading station settings:', loadError);
       setError('Unable to load station settings.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleContestChange = async (event) => {
+    const slug = event.target.value;
+    if (!slug || slug === activeContestSlug) {
+      return;
+    }
+
+    setSwitchingContest(true);
+    setError('');
+    setMessage('');
+    try {
+      await setActiveContest(slug);
+      setActiveContestSlug(slug);
+      await refreshStatus();
+      await loadPanelData();
+      setMessage(`Switched to ${getContestDefinition(slug)?.name || slug}. Logbook and settings now show that contest.`);
+    } catch (switchError) {
+      setError(switchError.message || 'Unable to switch contest.');
+    } finally {
+      setSwitchingContest(false);
     }
   };
 
@@ -100,6 +143,9 @@ function StationSettingsPanel({ contactCount = 0 }) {
   const exchange = formatExchange(settings);
   const bonusPreview = calculateBonusPoints(settings);
 
+  const activeContest = getContestDefinition(activeContestSlug);
+  const contestLabel = status.activeContest?.name || activeContest?.name || 'Field Day';
+
   if (loading) {
     return <div className="station-settings-panel">Loading station settings...</div>;
   }
@@ -109,10 +155,32 @@ function StationSettingsPanel({ contactCount = 0 }) {
       <div className="settings-scroll-area">
         <div className="settings-intro">
           <p>
-            Configure your Field Day entry. These settings drive the projected score on the
+            Configure your <strong>{contestLabel}</strong> entry. These settings drive the projected score on the
             main logger and define the exchange you send (e.g., <strong>3A AZ</strong>).
           </p>
         </div>
+
+        {contests.length > 0 && (
+          <div className="settings-contest-bar">
+            <span className="settings-contest-bar-label">Active Contest</span>
+            <select
+              className="settings-contest-bar-select"
+              value={activeContestSlug}
+              onChange={handleContestChange}
+              disabled={switchingContest || saving}
+              aria-label="Contest logbook"
+            >
+              {contests.map((contest) => (
+                <option key={contest.slug} value={contest.slug}>
+                  {contest.name}
+                </option>
+              ))}
+            </select>
+            <span className="settings-contest-bar-hint">
+              Each contest keeps its own QSO log and station settings.
+            </span>
+          </div>
+        )}
 
         <div className="settings-grid">
           <section className="settings-section">

@@ -117,7 +117,7 @@ function Login({ clubName, authMode, onLogin }) {
           </form>
 
           <p className="login-about-link">
-            <Link to="/about">About {APP_NAME} · free &amp; open source</Link>
+            <Link to="/display">Scoreboard and Map</Link>
           </p>
         </div>
 

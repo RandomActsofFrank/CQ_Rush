@@ -27,9 +27,24 @@ model SiteConfig {
   @@map("site_config")
 }
 
+model Contest {
+  slug      String   @id
+  name      String
+  ruleset   String   @default("field-day")
+  settings  Json     @default("{}")
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contacts Contact[]
+
+  @@map("contests")
+}
+
 model Contact {
   id               BigInt    @id
   timestamp        DateTime  @default(now())
+  contestSlug      String    @default("field-day")
   callsign         String
   frequency        String?
   mode             String?
@@ -50,7 +65,10 @@ model Contact {
   lastEditedAt     DateTime?
 
   history ContactHistory[]
+  contest Contest      @relation(fields: [contestSlug], references: [slug], onDelete: Restrict)
 
+  @@index([contestSlug])
+  @@index([contestSlug, deleted])
   @@map("contacts")
 }
 

@@ -41,7 +41,7 @@ code {
 .app-footer-link {
   color: rgba(255, 255, 255, 0.72);
   text-decoration: none;
-  font-size: 12px;
+  font-size: 9.6px;
   letter-spacing: 0.02em;
 }
 
@@ -856,14 +856,6 @@ code {
   color: #666;
 }
 
-.sections-map-credit {
-  margin: 0;
-  padding: 8px 16px 12px;
-  font-size: 12px;
-  color: #666;
-  text-align: right;
-}
-
 .section-map-label div {
   font-size: 10px;
   font-weight: 700;
@@ -894,7 +886,7 @@ code {
 }
 
 .public-display-dark {
-  background: #0a0e13;
+  background: #22262b;
   color: #e8edf3;
 }
 
@@ -913,9 +905,9 @@ code {
 }
 
 .public-display-dark .public-display-header {
-  background: #06080b;
+  background: #1a1e23;
   color: #f3f4f6;
-  border-bottom: 1px solid #1f2937;
+  border-bottom: 1px solid #2f3847;
 }
 
 .public-display-header-center {
@@ -994,8 +986,8 @@ code {
 }
 
 .public-display-dark .public-display-sidebar {
-  background: #0a0e13;
-  border-right: 1px solid #1f2937;
+  background: #22262b;
+  border-right: 1px solid #2f3847;
 }
 
 .public-display-sidebar {
@@ -1187,7 +1179,7 @@ code {
 }
 
 .public-display-dark .public-display-map {
-  background: #1a2332;
+  background: #313946;
 }
 
 .public-display-map {
@@ -1217,8 +1209,8 @@ code {
 }
 
 .public-display-dark .public-display-map .sections-map-embedded .sections-map-toolbar {
-  background: #1a2332;
-  border-bottom-color: #2d3748;
+  background: #313946;
+  border-bottom-color: #3d4656;
 }
 
 .public-display-map .sections-map-embedded .arrl-map-container {
@@ -1228,7 +1220,7 @@ code {
 }
 
 .public-display-dark .public-display-map .sections-map-embedded .arrl-map-container {
-  background: #1a2332;
+  background: #313946;
 }
 
 .public-display-map .sections-map-embedded .arrl-map-fill {
@@ -1240,24 +1232,47 @@ code {
   border-radius: 0 !important;
 }
 
-.public-display-map .sections-map-embedded .sections-map-credit {
+.public-display-map-footer {
   flex-shrink: 0;
-  padding: 6px 12px;
-  margin: 0;
+  padding: 6px 12px 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.public-display-dark .public-display-map-footer {
+  background: rgba(26, 32, 44, 0.96);
+}
+
+.public-display-light .public-display-map-footer {
+  background: rgba(45, 55, 72, 0.96);
+  border-top-color: rgba(0, 0, 0, 0.12);
+}
+
+.public-display-map-footer .app-footer-link {
+  pointer-events: none;
+  cursor: default;
+  text-decoration: none;
+}
+
+.public-display-map-footer .app-footer-link:hover {
+  color: rgba(255, 255, 255, 0.72);
+  text-decoration: none;
+}
+
+.public-display-light .public-display-map-footer .app-footer-link {
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .sections-map-dark .sections-map-legend .legend-uncontacted::before {
-  background: #252f3f;
-  border-color: #252f3f;
+  background: #3a4558;
+  border-color: #3a4558;
 }
 
 .sections-map-dark .sections-map-toolbar {
-  background: #1a2332;
-  border-bottom-color: #2d3748;
+  background: #313946;
+  border-bottom-color: #3d4656;
 }
 
-.sections-map-dark .sections-map-legend,
-.sections-map-dark .sections-map-credit {
+.sections-map-dark .sections-map-legend {
   color: #d1d5db;
 }
 
@@ -1265,20 +1280,16 @@ code {
   color: #a3e635;
 }
 
-.sections-map-dark .sections-map-credit a {
-  color: #86efac;
-}
-
 .sections-map-dark .arrl-map-container {
-  background: #1a2332;
+  background: #313946;
 }
 
 .sections-map-dark .sections-map-embedded .arrl-map-container {
-  background: #1a2332;
+  background: #313946;
 }
 
 .sections-map-dark .leaflet-container {
-  background: #1a2332 !important;
+  background: #313946 !important;
 }
 
 .sections-map-dark .sections-map-loading {
@@ -2047,6 +2058,18 @@ code {
   font-size: 13px;
   font-weight: 600;
   width: 100%;
+}
+
+.callsign-lookup-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.name-entry-suggested {
+  border-color: #667eea;
+  background: #fff;
 }
 
 .license-notice-bar {

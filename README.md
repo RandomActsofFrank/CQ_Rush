@@ -1,6 +1,6 @@
 # CQ Rush
 
-[![Version](https://img.shields.io/badge/version-1.2.1-blue.svg)](https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.2.1)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.3.0)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
 
 **CQ Rush** is a free, open-source, donationware-suggested web app for **ARRL Field Day** contest logging. React frontend, Node.js/Express API, and PostgreSQL. Each club or operator configures their own entry name in the admin panel — the app brand is always CQ Rush.
@@ -148,6 +148,78 @@ chmod +x deploy/pi/setup.sh deploy/pi/update.sh
 
 First Docker build on a Pi can take **20–40 minutes**. The logger will be at `http://<pi-ip>:3002` (public display at `/display`).
 
+## Upgrading (v1.0 → v1.3 and future releases)
+
+CQ Rush is designed for **in-place upgrades**. Your QSO log, operator accounts, passwords, club name, and station settings are stored in **PostgreSQL** on a Docker volume (`hamlog_pg_data`). Normal upgrade scripts **do not** delete that volume.
+
+Every time the app container starts, it runs:
+
+1. **`prisma migrate deploy`** — applies any new SQL migrations in order (safe to run repeatedly)
+2. **`node seed.js`** — ensures default config rows exist (does not wipe contacts)
+3. **`node index.js`** — starts the API
+
+You can skip intermediate versions (for example **1.0 → 1.3** directly). Migrations run sequentially; existing data is preserved and backfilled where needed (v1.3 assigns all existing QSOs to the **`field-day`** contest slug and copies legacy station settings into the new `contests` table).
+
+### Recommended before upgrading
+
+1. **Use a git clone** for installs you plan to maintain — `./deploy/pi/update.sh` and `./deploy/aws/deploy.sh` expect to sync from a repo checkout. A one-time ZIP download works for first install, but git makes upgrades much simpler.
+2. **Optional backup** (especially before Field Day if you already have a log):
+
+```bash
+# On the server or Pi, from the project directory (adjust env file path if needed)
+docker compose -f docker-compose.prod.yml --env-file deploy/aws/.env.production \
+  exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "cq-rush-backup-$(date +%Y%m%d).sql"
+```
+
+3. Expect **1–3 minutes of downtime** while containers rebuild and migrations run.
+
+### Upgrade on AWS EC2
+
+From your laptop (same machine you used for the original deploy):
+
+```bash
+cd /path/to/CQ_Rush
+git fetch --tags
+git checkout v1.3.0          # or: git pull origin main
+
+cd deploy/aws
+./start.sh                   # if the instance was stopped
+./deploy.sh                  # syncs code, rebuilds containers, runs migrations
+```
+
+Your `.env.production` on the server is **not** overwritten by rsync (secrets stay put). Hard-refresh the browser (Cmd+Shift+R) after deploy.
+
+### Upgrade on Raspberry Pi
+
+On the Pi:
+
+```bash
+cd ~/CQ_Rush
+git fetch --tags
+git checkout v1.3.0          # or: git pull origin main
+./deploy/pi/update.sh
+```
+
+### Upgrade with Docker only (no deploy scripts)
+
+```bash
+git fetch --tags
+git checkout v1.3.0
+docker compose -f docker-compose.prod.yml --env-file deploy/aws/.env.production up -d --build
+```
+
+Do **not** run `docker compose down -v` — the `-v` flag removes volumes and would delete your database.
+
+### After upgrading
+
+1. Open the logbook and confirm your contacts appear in **Admin → Logbook**.
+2. Open **Admin → Station Settings** — entry class, section, and bonuses should match what you had before (v1.3 stores these per contest under slug **`field-day`**).
+3. If anything looks wrong, restore from your optional SQL backup or contact support via GitHub issues.
+
+### Future releases
+
+Same pattern: fetch the new tag (or pull `main`), run **`./deploy/aws/deploy.sh`** or **`./deploy/pi/update.sh`**, hard-refresh browsers. See [CHANGELOG.md](./CHANGELOG.md) for breaking changes (rare; called out per release).
+
 ## Project Structure
 
 ```
@@ -199,13 +271,14 @@ Override the 1×1 search base URL with `ONE_BY_ONE_SEARCH_URL` if needed. Tune d
 
 | Data                             | Source                                                                                                                                          | Shipped as                            | Used for                                |
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | --------------------------------------- |
-| US county boundaries             | [U.S. Census Bureau TIGER/Line](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) (`cb_2023_us_county_5m`) | `client/public/us_counties_5m.json`   | ARRL section map (`ArrlSectionsMap.js`) |
+| US county boundaries             | [U.S. Census Bureau TIGER/Line](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) (`cb_2023_us_county_5m`) | `client/public/us_counties_5m.json`   | ARRL section map — United States        |
+| Canadian section boundaries      | [n1kdo/n1mm_view shapes](https://github.com/n1kdo/n1mm_view/tree/master/shapes) (derived from ISED public data)                               | `client/public/arrl_canada_sections.json` | ARRL section map — Canada             |
 | ARRL section rules               | [ARRL section boundaries](https://www.arrl.org/section-boundaries)                                                                              | `client/src/arrlSectionBoundaries.js` | Highlight contacted sections on map     |
 | Field Day rules & valid sections | [ARRL Field Day rules](https://www.arrl.org/field-day-rules)                                                                                    | `client/src/fieldDayRules.js`         | Validation, scoring, projected score    |
 | Maidenhead grid → lat/lon        | Computed in-app                                                                                                                                 | `server/index.js` (`gridToLocation`)  | Map pin for callsign popup              |
 
 
-Raw Census shapefiles for rebuilding map assets live under `data/geographic/`.
+Raw Census shapefiles for rebuilding map assets live under `data/geographic/`. Regenerate Canadian section GeoJSON with `node scripts/build-canada-section-geojson.js` (requires `shapefile` dev dependency).
 
 ### Operational notes
 
@@ -288,7 +361,9 @@ See [Pi Display add-in](#pi-display-add-in) for a quick start; full docs in [PI_
 
 ## Release
 
-Current stable release: **[v1.2.1](https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.2.1)** — see [CHANGELOG.md](./CHANGELOG.md) for details.
+Current stable release: **[v1.3.0](https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.3.0)** — see [CHANGELOG.md](./CHANGELOG.md) for details.
+
+**Upgrading from v1.0 or any earlier release:** see [Upgrading (v1.0 → v1.3 and future releases)](#upgrading-v10--v13-and-future-releases). No manual database steps are required; run the same deploy/update script you use today.
 
 Before publishing docs or tagging a release, run the privacy regression check:
 
@@ -296,10 +371,12 @@ Before publishing docs or tagging a release, run the privacy regression check:
 ./scripts/check-public-release.sh
 ```
 
+Fresh install at a tagged release:
+
 ```bash
 git clone https://github.com/RandomActsofFrank/CQ_Rush.git
 cd CQ_Rush
-git checkout v1.2.1
+git checkout v1.3.0
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 

@@ -82,10 +82,14 @@ Configure **Admin → Station Settings** and **Admin → Security & Branding** o
 On the Pi, from the project directory:
 
 ```bash
+git fetch --tags
+git checkout v1.3.0    # or: git pull origin main
 ./deploy/pi/update.sh
 ```
 
-This runs `git pull` and rebuilds/restarts containers.
+This runs `git pull` (if on a branch), rebuilds containers, and applies **database migrations** automatically on container start. Your log data is kept in the Docker volume `hamlog_pg_data`.
+
+**Full upgrade guide** (backup, AWS path, skipping versions): [README — Upgrading](../README.md#upgrading-v10--v13-and-future-releases)
 
 ---
 

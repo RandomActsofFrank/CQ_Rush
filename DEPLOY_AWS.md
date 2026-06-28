@@ -136,10 +136,21 @@ Do **not** commit certificate private keys or production secrets to the reposito
 
 ## Updating the app
 
-After code changes locally:
+After code changes locally (or to upgrade from an earlier release such as v1.0):
 
 ```bash
 cd deploy/aws && ./deploy.sh
+```
+
+This syncs code to the server, rebuilds containers, and on startup automatically runs **database migrations** and the idempotent **seed** script. Your PostgreSQL data lives in the Docker volume `hamlog_pg_data` and is **not** removed by `./deploy.sh`.
+
+**Full upgrade guide** (backup, skipping versions, v1.0 → v1.3, Pi vs AWS): [README — Upgrading](./README.md#upgrading-v10--v13-and-future-releases)
+
+```bash
+# Optional: stop/start instance between contests
+./stop.sh    # ~$0.80/mo storage only
+./start.sh   # public IP may change unless you use an Elastic IP
+./deploy.sh  # push v1.3.0 (or latest) after git checkout / pull
 ```
 
 ---

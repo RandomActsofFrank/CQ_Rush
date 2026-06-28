@@ -113,6 +113,37 @@ export async function saveAppConfig(config) {
   return response.json();
 }
 
+export async function fetchContests() {
+  const response = await apiFetch('/api/contests');
+  if (!response.ok) {
+    throw new Error('Unable to load contests');
+  }
+  return response.json();
+}
+
+export async function fetchActiveContest() {
+  const response = await apiFetch('/api/contests/active');
+  if (!response.ok) {
+    throw new Error('Unable to load active contest');
+  }
+  return response.json();
+}
+
+export async function setActiveContest(slug) {
+  const response = await apiFetch('/api/contests/active', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug })
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Unable to switch contest');
+  }
+
+  return response.json();
+}
+
 export async function fetchUsers() {
   const response = await apiFetch('/api/users');
   if (!response.ok) {

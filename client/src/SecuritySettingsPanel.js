@@ -5,7 +5,8 @@ import {
   fetchUsers,
   createUserAccount,
   updateUserAccount,
-  deleteUserAccount
+  deleteUserAccount,
+  apiFetch
 } from './api';
 import { useAuth } from './AuthContext';
 import { formatHeaderTitle, getEntryClubName } from './branding';
@@ -26,6 +27,8 @@ function SecuritySettingsPanel() {
   const [newUserCallsign, setNewUserCallsign] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserIsAdmin, setNewUserIsAdmin] = useState(false);
+  const [newUserLookupName, setNewUserLookupName] = useState('');
+  const [newUserLookupStatus, setNewUserLookupStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -37,6 +40,35 @@ function SecuritySettingsPanel() {
   useEffect(() => {
     loadConfig();
   }, []);
+
+  useEffect(() => {
+    const callsign = newUserCallsign.trim().toUpperCase();
+    if (!callsign || callsign.length < 3) {
+      setNewUserLookupName('');
+      setNewUserLookupStatus(null);
+      return undefined;
+    }
+
+    setNewUserLookupStatus('loading');
+    const timer = setTimeout(async () => {
+      try {
+        const response = await apiFetch(`/api/lookup/${callsign}`);
+        const data = await response.json();
+        if (data.success) {
+          setNewUserLookupName(data.name || '');
+          setNewUserLookupStatus('found');
+        } else {
+          setNewUserLookupName('');
+          setNewUserLookupStatus('not-found');
+        }
+      } catch {
+        setNewUserLookupName('');
+        setNewUserLookupStatus('not-found');
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [newUserCallsign]);
 
   const loadConfig = async () => {
     setLoading(true);
@@ -165,6 +197,8 @@ function SecuritySettingsPanel() {
       setNewUserCallsign('');
       setNewUserPassword('');
       setNewUserIsAdmin(false);
+      setNewUserLookupName('');
+      setNewUserLookupStatus(null);
       setUsers(await fetchUsers());
       await refreshStatus();
       setMessage(`Added user ${callsign}.`);
@@ -356,7 +390,7 @@ function SecuritySettingsPanel() {
               </p>
 
               <div className="security-user-add">
-                <label>
+                <label className="security-user-callsign-field">
                   Callsign
                   <input
                     type="text"
@@ -364,6 +398,19 @@ function SecuritySettingsPanel() {
                     onChange={(e) => setNewUserCallsign(e.target.value.toUpperCase())}
                     placeholder="e.g., N7PHX"
                   />
+                  {newUserLookupStatus === 'loading' && (
+                    <span className="security-user-lookup">Looking up...</span>
+                  )}
+                  {newUserLookupStatus === 'found' && newUserLookupName && (
+                    <span className="security-user-lookup security-user-lookup-name">
+                      {newUserLookupName}
+                    </span>
+                  )}
+                  {newUserLookupStatus === 'not-found' && (
+                    <span className="security-user-lookup security-user-lookup-missing">
+                      Name not found in lookup
+                    </span>
+                  )}
                 </label>
                 <label>
                   Password

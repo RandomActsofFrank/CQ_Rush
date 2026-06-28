@@ -183,7 +183,21 @@ function reservationToLookupResult(reservation, source = '1x1') {
   };
 }
 
-async function fetchOneByOneHtml(url, fetchImpl) {
+function resolveOneByOneFetch() {
+  if (typeof globalThis.fetch === 'function') {
+    return globalThis.fetch.bind(globalThis);
+  }
+
+  // Fallback for older Node; node-fetch is blocked by Cloudflare in production.
+  return require('node-fetch');
+}
+
+function isCloudflareChallenge(html) {
+  return /just a moment|cf-browser-verification|challenges\.cloudflare\.com/i.test(html);
+}
+
+async function fetchOneByOneHtml(url) {
+  const fetchImpl = resolveOneByOneFetch();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 12000);
 
@@ -192,7 +206,8 @@ async function fetchOneByOneHtml(url, fetchImpl) {
     response = await fetchImpl(url, {
       headers: {
         'User-Agent': 'CQ-Rush/1.2.1 (Field Day logger; +https://github.com/RandomActsofFrank/CQ_Rush)',
-        Accept: 'text/html'
+        Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9'
       },
       signal: controller.signal
     });
@@ -200,11 +215,16 @@ async function fetchOneByOneHtml(url, fetchImpl) {
     clearTimeout(timeoutId);
   }
 
-  if (!response.ok) {
-    throw new Error(`1x1 lookup HTTP ${response.status}`);
+  const html = await response.text();
+
+  if (!response.ok || isCloudflareChallenge(html)) {
+    const reason = isCloudflareChallenge(html)
+      ? 'blocked by Cloudflare bot protection'
+      : `HTTP ${response.status}`;
+    throw new Error(`1x1 lookup ${reason}`);
   }
 
-  return response.text();
+  return html;
 }
 
 function delay(ms) {
@@ -301,7 +321,7 @@ function parseOneByOneSearchResultsPage(html) {
   return rows;
 }
 
-async function lookupOneByOneCallsign(callsign, fetchImpl) {
+async function lookupOneByOneCallsign(callsign) {
   const normalized = String(callsign || '').toUpperCase();
 
   if (!isOneByOneCallsign(normalized)) {
@@ -309,14 +329,14 @@ async function lookupOneByOneCallsign(callsign, fetchImpl) {
   }
 
   const searchUrl = `${ONE_BY_ONE_SEARCH_URL}?callsign=${encodeURIComponent(normalized)}`;
-  const searchHtml = await fetchOneByOneHtml(searchUrl, fetchImpl);
+  const searchHtml = await fetchOneByOneHtml(searchUrl);
   const detailIds = extractDetailIds(searchHtml).slice(0, 10);
 
   let reservations = [];
 
   if (detailIds.length > 0) {
     const detailPages = await Promise.all(
-      detailIds.map((id) => fetchOneByOneHtml(`${ONE_BY_ONE_SEARCH_URL}?byid=${id}`, fetchImpl))
+      detailIds.map((id) => fetchOneByOneHtml(`${ONE_BY_ONE_SEARCH_URL}?byid=${id}`))
     );
     reservations = detailPages
       .map((html, index) => parseOneByOneDetailPage(html, detailIds[index]))

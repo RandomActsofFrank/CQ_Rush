@@ -23,7 +23,8 @@ const DEFAULT_STATUS = {
   sitePasswordSet: false,
   adminPasswordSet: false,
   userCallsign: null,
-  userIsAdmin: false
+  userIsAdmin: false,
+  activeContest: null
 };
 
 export function AuthProvider({ children }) {
@@ -48,7 +49,8 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (
-      loading
+      isPublicRoute
+      || loading
       || !status.siteAuthenticated
       || status.authMode !== 'user_accounts'
       || !status.userAuthEnabled
@@ -62,6 +64,7 @@ export function AuthProvider({ children }) {
 
     return () => clearInterval(interval);
   }, [
+    isPublicRoute,
     loading,
     status.siteAuthenticated,
     status.authMode,

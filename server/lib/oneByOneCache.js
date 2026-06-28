@@ -16,8 +16,59 @@ const { lookupCallookCallsign } = require('./callookLookup');
 
 const DEFAULT_REQUEST_DELAY_MS = Number(process.env.ONE_BY_ONE_REQUEST_DELAY_MS || 150);
 const DEFAULT_DETAIL_CONCURRENCY = Number(process.env.ONE_BY_ONE_DETAIL_CONCURRENCY || 3);
+const REFRESH_COOLDOWN_MS = Number(process.env.ONE_BY_ONE_REFRESH_COOLDOWN_MS || 72 * 60 * 60 * 1000);
 
 let refreshPromise = null;
+
+function getRefreshCooldownInfo(meta = {}) {
+  const cooldownHours = REFRESH_COOLDOWN_MS / (60 * 60 * 1000);
+
+  if (meta.status === 'error') {
+    return {
+      canRefresh: true,
+      cooldownHours,
+      cooldownBypassed: true,
+      cooldownMessage: 'Last refresh failed — you can retry immediately.'
+    };
+  }
+
+  if (meta.status === 'complete' && meta.refreshedAt) {
+    const lastRefreshMs = new Date(meta.refreshedAt).getTime();
+    if (!Number.isNaN(lastRefreshMs)) {
+      const elapsedMs = Date.now() - lastRefreshMs;
+      if (elapsedMs < REFRESH_COOLDOWN_MS) {
+        const nextRefreshAt = new Date(lastRefreshMs + REFRESH_COOLDOWN_MS).toISOString();
+        return {
+          canRefresh: false,
+          cooldownHours,
+          cooldownBypassed: false,
+          nextRefreshAt,
+          remainingMs: REFRESH_COOLDOWN_MS - elapsedMs,
+          cooldownMessage: `Cache was refreshed recently. Try again after ${nextRefreshAt} (${cooldownHours}-hour cooldown).`
+        };
+      }
+    }
+  }
+
+  return {
+    canRefresh: true,
+    cooldownHours,
+    cooldownBypassed: false,
+    cooldownMessage: null
+  };
+}
+
+function assertRefreshAllowed(meta) {
+  const cooldown = getRefreshCooldownInfo(meta);
+  if (!cooldown.canRefresh) {
+    const error = new Error(cooldown.cooldownMessage || '1×1 cache refresh is on cooldown.');
+    error.code = 'REFRESH_COOLDOWN';
+    error.nextRefreshAt = cooldown.nextRefreshAt;
+    error.remainingMs = cooldown.remainingMs;
+    throw error;
+  }
+  return cooldown;
+}
 
 async function getCacheMeta(prisma) {
   const row = await prisma.siteConfig.findUnique({
@@ -195,7 +246,7 @@ async function lookupCachedOneByOne(prisma, callsign, referenceDate = new Date()
   return reservationToLookupResult(best, '1x1-cache');
 }
 
-async function runCacheRefresh(prisma, fetchImpl, options = {}) {
+async function runCacheRefresh(prisma, options = {}) {
   const startDate = normalizeDateInput(options.startDate);
   const endDate = normalizeDateInput(options.endDate);
 
@@ -222,8 +273,7 @@ async function runCacheRefresh(prisma, fetchImpl, options = {}) {
 
   try {
     searchHtml = await fetchOneByOneHtml(
-      buildOneByOneDateRangeSearchUrl(startDate, endDate),
-      fetchImpl
+      buildOneByOneDateRangeSearchUrl(startDate, endDate)
     );
     summaryRows = parseOneByOneSearchResultsPage(searchHtml);
   } catch (error) {
@@ -280,7 +330,7 @@ async function runCacheRefresh(prisma, fetchImpl, options = {}) {
     const pages = await Promise.all(
       batch.map(async (id) => {
         try {
-          const html = await fetchOneByOneHtml(`${ONE_BY_ONE_SEARCH_URL}?byid=${id}`, fetchImpl);
+          const html = await fetchOneByOneHtml(`${ONE_BY_ONE_SEARCH_URL}?byid=${id}`);
           return parseOneByOneDetailPage(html, id);
         } catch (error) {
           errors += 1;
@@ -353,25 +403,30 @@ async function runCacheRefresh(prisma, fetchImpl, options = {}) {
   };
 }
 
-function startOneByOneCacheRefresh(prisma, fetchImpl, options = {}) {
+function startOneByOneCacheRefresh(prisma, options = {}) {
   if (refreshPromise) {
     return refreshPromise;
   }
 
   refreshPromise = (async () => {
     try {
-      return await runCacheRefresh(prisma, fetchImpl, options);
+      const meta = await getCacheMeta(prisma);
+      assertRefreshAllowed(meta);
+      return await runCacheRefresh(prisma, options);
     } catch (error) {
-      await saveCacheMeta(prisma, {
-        status: 'error',
-        message: error.message || '1×1 cache refresh failed.',
-        startDate: normalizeDateInput(options.startDate) || null,
-        endDate: normalizeDateInput(options.endDate) || null,
-        detailCount: 0,
-        savedReservations: 0,
-        refreshedAt: null,
-        startedAt: new Date().toISOString()
-      });
+      if (error.code !== 'REFRESH_COOLDOWN') {
+        const previousMeta = await getCacheMeta(prisma);
+        await saveCacheMeta(prisma, {
+          status: 'error',
+          message: error.message || '1×1 cache refresh failed.',
+          startDate: normalizeDateInput(options.startDate) || null,
+          endDate: normalizeDateInput(options.endDate) || null,
+          detailCount: 0,
+          savedReservations: 0,
+          refreshedAt: previousMeta.refreshedAt || null,
+          startedAt: new Date().toISOString()
+        });
+      }
       throw error;
     } finally {
       refreshPromise = null;
@@ -387,6 +442,7 @@ function isOneByOneCacheRefreshRunning() {
 
 module.exports = {
   getCacheMeta,
+  getRefreshCooldownInfo,
   lookupCachedOneByOne,
   startOneByOneCacheRefresh,
   isOneByOneCacheRefreshRunning,

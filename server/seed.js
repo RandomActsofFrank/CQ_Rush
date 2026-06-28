@@ -1,10 +1,10 @@
 require('dotenv').config();
 const { ensureAppConfigConfigured } = require('./lib/appConfig');
-const { ensureStationSettingsConfigured } = require('./lib/stationSettings');
+const { ensureContestsConfigured } = require('./lib/contests');
 
 async function main() {
   await ensureAppConfigConfigured();
-  await ensureStationSettingsConfigured();
+  await ensureContestsConfigured();
   console.log('Database seed complete.');
 }
 

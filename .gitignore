@@ -11,6 +11,7 @@ deploy/aws/.aws-deploy-state
 
 # Build output (rebuilt in Docker/CI)
 client/build/
+scripts/.tmp-shapes/
 
 # Logs
 npm-debug.log*

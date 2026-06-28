@@ -83,6 +83,12 @@ function OneByOneCachePanel() {
         return;
       }
 
+      if (response.status === 429) {
+        setError(data.error || '1×1 cache refresh is on cooldown.');
+        await loadStatus();
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(data.error || 'Unable to start 1×1 cache refresh.');
       }
@@ -104,13 +110,18 @@ function OneByOneCachePanel() {
             Search the official 1×1 database by date range, then download each reservation&apos;s
             detail page into the local database. Operator name and grid come from the requestor
             call via Callook. Defaults to two days before and after Field Day (4th full June weekend).
+            Successful refreshes are limited to once every {status?.cooldownHours ?? 72} hours;
+            if a refresh fails (e.g. 1x1callsigns.org is down), you can retry immediately.
+            A refresh may take several minutes to finish depending on how many stations are in the
+            selected date range — leave this page open or check back later for status updates.
           </p>
         </div>
         <button
           type="button"
           className="btn-secondary"
           onClick={handleRefresh}
-          disabled={loading || refreshing}
+          disabled={loading || refreshing || status?.canRefresh === false}
+          title={status?.canRefresh === false ? status.cooldownMessage : undefined}
         >
           {refreshing ? 'Refreshing…' : 'Refresh 1×1 Cache'}
         </button>
@@ -140,6 +151,12 @@ function OneByOneCachePanel() {
       {loading && <p>Loading cache status…</p>}
       {error && <p className="admin-inline-error">{error}</p>}
       {message && <p className="admin-inline-success">{message}</p>}
+      {!error && status?.canRefresh === false && status.cooldownMessage && (
+        <p className="admin-one-by-one-cooldown">{status.cooldownMessage}</p>
+      )}
+      {!error && status?.cooldownBypassed && status.cooldownMessage && (
+        <p className="admin-inline-success">{status.cooldownMessage}</p>
+      )}
 
       {status && (
         <div className="admin-one-by-one-stats">

@@ -4,6 +4,7 @@ import './Admin.css';
 import { apiFetch } from './api';
 import {
   ARRL_CLASS_PLACEHOLDER,
+  validateCallsign,
   validateClass,
   validateLocation
 } from './fieldDayRules';
@@ -16,6 +17,11 @@ import { useAuth } from './AuthContext';
 
 function Admin() {
   const { clubName, loginAdmin, adminAccessGranted, status } = useAuth();
+  const getEditorOperator = () => (
+    status.authMode === 'user_accounts' && status.userCallsign
+      ? status.userCallsign
+      : 'Admin'
+  );
   const [activeTab, setActiveTab] = useState('logbook');
   const [contacts, setContacts] = useState([]);
   const [editingId, setEditingId] = useState(null);
@@ -29,6 +35,11 @@ function Admin() {
   const [selectedContactId, setSelectedContactId] = useState(null);
   const [activeOperators, setActiveOperators] = useState([]);
   const [operatorsLoading, setOperatorsLoading] = useState(false);
+  const [operatorsError, setOperatorsError] = useState('');
+  const [lookupRefreshing, setLookupRefreshing] = useState(false);
+  const [lookupRefreshMessage, setLookupRefreshMessage] = useState('');
+  const [lookupRefreshError, setLookupRefreshError] = useState('');
+  const [refreshingContactId, setRefreshingContactId] = useState(null);
 
   // Frequency bands and modes (same as main app)
   const frequencyBands = [
@@ -71,17 +82,100 @@ function Admin() {
 
   const loadActiveOperators = async () => {
     setOperatorsLoading(true);
+    setOperatorsError('');
     try {
       const response = await apiFetch('/api/active-operators');
       if (response.ok) {
         setActiveOperators(await response.json());
+      } else {
+        setActiveOperators([]);
+        setOperatorsError('Unable to load active operators.');
       }
     } catch (error) {
       console.error('Error loading active operators:', error);
+      setActiveOperators([]);
+      setOperatorsError('Unable to load active operators.');
     } finally {
       setOperatorsLoading(false);
     }
   };
+
+  const handleRefreshContactLookup = async (contactId, callsign) => {
+    setLookupRefreshError('');
+    setLookupRefreshMessage('');
+    setRefreshingContactId(contactId);
+
+    try {
+      const response = await apiFetch(`/api/contacts/${contactId}/refresh-lookup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operator: getEditorOperator() })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || `Unable to refresh lookup for ${callsign}.`);
+      }
+
+      if (data.status === 'updated') {
+        setContacts((prev) => prev.map((contact) => (
+          contact.id === contactId ? { ...contact, name: data.name } : contact
+        )));
+        setLookupRefreshMessage(`Updated ${callsign} → ${data.name}.`);
+      } else if (data.status === 'unchanged') {
+        setLookupRefreshMessage(`${callsign} already has lookup name "${data.name}".`);
+      } else {
+        setLookupRefreshMessage(`No name found to save for ${callsign}.`);
+      }
+    } catch (error) {
+      setLookupRefreshError(error.message || `Unable to refresh lookup for ${callsign}.`);
+    } finally {
+      setRefreshingContactId(null);
+    }
+  };
+
+  const handleRefreshLookups = async (missingOnly) => {
+    if (!missingOnly) {
+      const confirmed = window.confirm(
+        'Re-run name lookup for every visible log entry? This may take a while.'
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    setLookupRefreshing(true);
+    setLookupRefreshError('');
+    setLookupRefreshMessage('');
+
+    try {
+      const response = await apiFetch('/api/contacts/refresh-lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          missingOnly,
+          includeDeleted: showDeleted,
+          operator: getEditorOperator()
+        })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Unable to refresh logbook lookup data.');
+      }
+
+      await loadContacts();
+      setLookupRefreshMessage(data.message || 'Logbook lookup refresh complete.');
+    } catch (error) {
+      setLookupRefreshError(error.message || 'Unable to refresh logbook lookup data.');
+    } finally {
+      setLookupRefreshing(false);
+    }
+  };
+
+  const missingNameCount = contacts.filter(
+    (contact) => !contact.name || !String(contact.name).trim()
+  ).length;
 
   const handleRemoveActiveOperator = async (callsign) => {
     if (!window.confirm(`Remove ${callsign} from active operators?`)) {
@@ -137,6 +231,7 @@ function Admin() {
     setEditingId(contact.id);
     setEditData({
       callsign: contact.callsign,
+      name: contact.name || '',
       frequency: contact.frequency,
       mode: contact.mode,
       classSent: contact.classSent,
@@ -156,7 +251,7 @@ function Admin() {
         },
         body: JSON.stringify({
           ...editData,
-          operator: 'Admin' // Track that this was edited by admin
+          operator: getEditorOperator()
         }),
       });
 
@@ -169,7 +264,7 @@ function Admin() {
         // Update local state
         setContacts(prev => prev.map(contact => 
           contact.id === contactId 
-            ? { ...contact, ...editData }
+            ? { ...contact, ...updatedContact }
             : contact
         ));
         setEditingId(null);
@@ -188,7 +283,7 @@ function Admin() {
 
   const handleDelete = async (contactId) => {
     try {
-      const response = await apiFetch(`/api/contacts/${contactId}?operator=Admin`, {
+      const response = await apiFetch(`/api/contacts/${contactId}?operator=${encodeURIComponent(getEditorOperator())}`, {
         method: 'DELETE',
       });
 
@@ -240,7 +335,7 @@ function Admin() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          operator: 'Admin' // Track that this was restored by admin
+          operator: getEditorOperator()
         }),
       });
 
@@ -280,7 +375,7 @@ function Admin() {
   const getChangedFields = (oldData, newData) => {
     if (!oldData || !newData) return [];
     
-    const fields = ['callsign', 'frequency', 'mode', 'classSent', 'locationReceived', 'notes'];
+    const fields = ['callsign', 'name', 'frequency', 'mode', 'classSent', 'locationReceived', 'notes'];
     const changes = [];
     
     fields.forEach(field => {
@@ -333,6 +428,13 @@ function Admin() {
           </button>
           <button
             type="button"
+            className={`admin-tab ${activeTab === 'onebyone' ? 'active' : ''}`}
+            onClick={() => setActiveTab('onebyone')}
+          >
+            1×1 Cache
+          </button>
+          <button
+            type="button"
             className={`admin-tab ${activeTab === 'security' ? 'active' : ''}`}
             onClick={() => setActiveTab('security')}
           >
@@ -341,6 +443,7 @@ function Admin() {
         </div>
       </div>
 
+      <div className="admin-body">
       {activeTab === 'security' ? (
         <div className="admin-content admin-content-settings">
           <SecuritySettingsPanel />
@@ -348,12 +451,14 @@ function Admin() {
       ) : activeTab === 'settings' ? (
         <div className="admin-content admin-content-settings">
           <StationSettingsPanel contactCount={contacts.filter((c) => c.deleted !== 'Y').length} />
+        </div>
+      ) : activeTab === 'onebyone' ? (
+        <div className="admin-content admin-content-settings">
           <OneByOneCachePanel />
         </div>
       ) : (
       <>
-      <div className="admin-subheader">
-        <h2>Logbook Management</h2>
+      <div className="admin-logbook-toolbar">
         <div className="admin-controls">
           <button
             type="button"
@@ -368,8 +473,33 @@ function Admin() {
           >
             {showDeleted ? 'Hide Deleted' : 'Show Deleted'}
           </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => handleRefreshLookups(true)}
+            disabled={lookupRefreshing || contacts.length === 0}
+            title="Fill in blank names from live lookup or local cache"
+          >
+            {lookupRefreshing ? 'Refreshing…' : `Refresh Missing Names${missingNameCount ? ` (${missingNameCount})` : ''}`}
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => handleRefreshLookups(false)}
+            disabled={lookupRefreshing || contacts.length === 0}
+            title="Re-run lookup for every visible log entry"
+          >
+            Refresh All Names
+          </button>
         </div>
       </div>
+
+      {(lookupRefreshError || lookupRefreshMessage) && (
+        <div className="admin-lookup-refresh-status">
+          {lookupRefreshError && <p className="admin-inline-error">{lookupRefreshError}</p>}
+          {lookupRefreshMessage && <p className="admin-inline-success">{lookupRefreshMessage}</p>}
+        </div>
+      )}
       
       <div className="admin-content admin-active-operators-panel">
         <div className="admin-active-operators-header">
@@ -389,9 +519,13 @@ function Admin() {
           </button>
         </div>
 
-        {activeOperators.length === 0 ? (
+        {operatorsError && (
+          <p className="admin-inline-error">{operatorsError}</p>
+        )}
+
+        {!operatorsError && activeOperators.length === 0 ? (
           <p className="admin-active-operators-empty">No active operators</p>
-        ) : (
+        ) : !operatorsError ? (
           <table className="admin-table admin-active-operators-table">
             <thead>
               <tr>
@@ -422,7 +556,7 @@ function Admin() {
               ))}
             </tbody>
           </table>
-        )}
+        ) : null}
       </div>
 
       <div className="admin-content">
@@ -442,15 +576,48 @@ function Admin() {
                 <th>Created By</th>
                 <th>Last Edited</th>
                 {showDeleted && <th>Status</th>}
-                <th>Actions</th>
+                <th className="admin-table-actions-col">Actions</th>
               </tr>
             </thead>
             <tbody>
               {contacts.map((contact) => (
                 <tr key={contact.id}>
                   <td>{formatTime(contact.timestamp)}</td>
-                  <td>{contact.callsign}</td>
-                  <td>{contact.name}</td>
+                  <td>
+                    {editingId === contact.id ? (
+                      <div className="edit-input-container">
+                        <input
+                          type="text"
+                          value={editData.callsign || ''}
+                          onChange={(e) => setEditData(prev => ({
+                            ...prev,
+                            callsign: e.target.value.toUpperCase()
+                          }))}
+                          className={`edit-input edit-callsign-input ${editData.callsign && !validateCallsign(editData.callsign) ? 'invalid-callsign' : ''}`}
+                          placeholder="Callsign"
+                          maxLength={12}
+                        />
+                        {editData.callsign && !validateCallsign(editData.callsign) && (
+                          <div className="invalid-callsign-text">Invalid callsign</div>
+                        )}
+                      </div>
+                    ) : (
+                      contact.callsign
+                    )}
+                  </td>
+                  <td>
+                    {editingId === contact.id ? (
+                      <input
+                        type="text"
+                        value={editData.name || ''}
+                        onChange={(e) => setEditData(prev => ({ ...prev, name: e.target.value }))}
+                        className="edit-input"
+                        placeholder="Operator name"
+                      />
+                    ) : (
+                      contact.name
+                    )}
+                  </td>
                   <td>
                     {editingId === contact.id ? (
                       <select
@@ -550,13 +717,15 @@ function Admin() {
                       {contact.deleted === 'Y' ? 'Deleted' : 'Active'}
                     </td>
                   )}
-                  <td className="action-buttons">
+                  <td className="admin-table-actions-col">
+                    <div className="action-buttons">
                     {editingId === contact.id ? (
                       <>
                         <button
                           className="btn-save"
                           onClick={() => handleSave(contact.id)}
                           disabled={
+                            !validateCallsign(editData.callsign) ||
                             !editData.frequency || 
                             !editData.mode || 
                             !editData.classSent || 
@@ -568,20 +737,14 @@ function Admin() {
                           Save
                         </button>
                         <button
-                          className="btn-secondary"
+                          type="button"
+                          className="btn-cancel"
                           onClick={() => {
                             setEditingId(null);
                             setEditData({});
                           }}
                         >
                           Cancel
-                        </button>
-                        <button
-                          className="btn-delete"
-                          onClick={() => confirmDelete(contact.id)}
-                          disabled={true}
-                        >
-                          Delete
                         </button>
                       </>
                     ) : (
@@ -593,6 +756,15 @@ function Admin() {
                           title="View Edit History"
                         >
                           History
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-lookup-refresh"
+                          onClick={() => handleRefreshContactLookup(contact.id, contact.callsign)}
+                          disabled={refreshingContactId === contact.id || lookupRefreshing}
+                          title="Refresh name from callsign lookup"
+                        >
+                          {refreshingContactId === contact.id ? '…' : 'Lookup'}
                         </button>
                         {contact.deleted === 'Y' ? (
                           <button
@@ -619,6 +791,7 @@ function Admin() {
                         )}
                       </>
                     )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -629,6 +802,22 @@ function Admin() {
         <div className="admin-logbook-footer">
           <button
             type="button"
+            className="btn-secondary"
+            onClick={() => handleRefreshLookups(true)}
+            disabled={lookupRefreshing || contacts.length === 0}
+          >
+            {lookupRefreshing ? 'Refreshing…' : 'Refresh Missing Names'}
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => handleRefreshLookups(false)}
+            disabled={lookupRefreshing || contacts.length === 0}
+          >
+            Refresh All Names
+          </button>
+          <button
+            type="button"
             className="btn-delete-all"
             onClick={handleDeleteAll}
             disabled={contacts.length === 0}
@@ -636,12 +825,14 @@ function Admin() {
             Delete All Log Entries
           </button>
           <p className="admin-logbook-footer-note">
-            Permanently removes every contact and edit history. This cannot be undone.
+            Refresh names uses live lookup (Callook, Canadian, 1×1) and falls back to the local
+            callsign cache when offline. Permanently removing every contact cannot be undone.
           </p>
         </div>
       </div>
       </>
       )}
+      </div>
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (

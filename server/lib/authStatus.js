@@ -2,6 +2,7 @@ const { getAppConfig, toPublicConfig } = require('./appConfig');
 const { getUserCount } = require('./users');
 const { isCurrentUserSession } = require('./userSessions');
 const { APP_NAME } = require('./branding');
+const { getActiveContest } = require('./contests');
 
 async function buildAuthStatus(req) {
   const config = await getAppConfig();
@@ -47,7 +48,8 @@ async function buildAuthStatus(req) {
     adminLoginRequired,
     adminAuthenticated,
     userCallsign: req.session?.userCallsign || null,
-    userIsAdmin: Boolean(req.session?.userIsAdmin)
+    userIsAdmin: Boolean(req.session?.userIsAdmin),
+    activeContest: await getActiveContest(false)
   };
 }
 

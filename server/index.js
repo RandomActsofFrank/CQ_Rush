@@ -10,10 +10,10 @@ const { Pool } = require('pg');
 
 const prisma = require('./lib/prisma');
 const { serializeRecord, serializeRecords } = require('./lib/serialize');
-const { lookupCallookCallsign } = require('./lib/callookLookup');
 const {
   requireSiteAuth,
   requireAdminAuth,
+  hasAdminAccess,
   verifySitePassword,
   verifyAdminPassword
 } = require('./lib/auth');
@@ -41,23 +41,35 @@ const {
 } = require('./lib/appConfig');
 const {
   getStationSettings,
-  saveStationSettings,
-  ensureStationSettingsConfigured
+  saveStationSettings
 } = require('./lib/stationSettings');
 const {
-  isOneByOneCallsign,
-  lookupOneByOneCallsign,
+  listContests,
+  getActiveContest,
+  getActiveContestSlug,
+  setActiveContestSlug,
+  ensureContestsConfigured,
+  toPublicContest
+} = require('./lib/contests');
+const {
   normalizeDateInput,
   isValidDateRange,
   suggestedFieldDayDateRange
 } = require('./lib/oneByOneLookup');
 const {
   getCacheMeta,
-  lookupCachedOneByOne,
+  getRefreshCooldownInfo,
   startOneByOneCacheRefresh,
-  isOneByOneCacheRefreshRunning,
-  enrichReservationWithCallook
+  isOneByOneCacheRefreshRunning
 } = require('./lib/oneByOneCache');
+const {
+  LOOKUP_DELAY_MS,
+  delay,
+  isContactNameMissing,
+  resolveCallsignLookup,
+  toPublicLookupResponse,
+  applyLookupToContact
+} = require('./lib/callsignLookupService');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -119,6 +131,20 @@ async function trackContactChange(contactId, action, oldData, newData, operator)
   });
 }
 
+function resolveContactOperator(req, clientOperator) {
+  const sessionCallsign = req.session?.userCallsign;
+  if (sessionCallsign) {
+    return normalizeCallsign(sessionCallsign) || String(sessionCallsign).trim().toUpperCase();
+  }
+
+  const trimmed = String(clientOperator || '').trim();
+  if (trimmed) {
+    return trimmed.toUpperCase();
+  }
+
+  return 'Admin';
+}
+
 async function updateDuplicateFlags() {
   const activeOperators = await prisma.activeOperator.findMany();
 
@@ -157,6 +183,14 @@ async function updateDuplicateFlags() {
   }
 }
 
+async function getActiveContestContactWhere(extra = {}) {
+  const contestSlug = await getActiveContestSlug();
+  return {
+    contestSlug,
+    ...extra
+  };
+}
+
 function buildContactData(body, existing = {}) {
   const {
     callsign,
@@ -173,7 +207,9 @@ function buildContactData(body, existing = {}) {
   } = body;
 
   return {
-    callsign: callsign ?? existing.callsign,
+    callsign: callsign != null
+      ? String(callsign).trim().toUpperCase()
+      : existing.callsign,
     frequency: frequency ?? existing.frequency,
     mode: mode ?? existing.mode,
     classSent: classSent ?? existing.classSent,
@@ -367,10 +403,12 @@ app.post('/api/auth/change-password', async (req, res) => {
 const PUBLIC_READ_API_PATHS = new Set([
   '/contacts',
   '/active-operators',
-  '/station-settings'
+  '/station-settings',
+  '/contests',
+  '/contests/active'
 ]);
 
-app.use('/api', (req, res, next) => {
+app.use('/api', async (req, res, next) => {
   if (
     req.path === '/test'
     || req.path.startsWith('/auth/')
@@ -378,6 +416,11 @@ app.use('/api', (req, res, next) => {
   ) {
     return next();
   }
+
+  if (await hasAdminAccess(req)) {
+    return next();
+  }
+
   return requireSiteAuth(req, res, next);
 });
 
@@ -460,9 +503,33 @@ app.put('/api/station-settings', requireAdminAuth, async (req, res) => {
   }
 });
 
+app.get('/api/contests', async (req, res) => {
+  const contests = await listContests();
+  res.json(contests.map((contest) => toPublicContest(contest, false)));
+});
+
+app.get('/api/contests/active', async (req, res) => {
+  res.json(await getActiveContest(true));
+});
+
+app.put('/api/contests/active', requireAdminAuth, async (req, res) => {
+  try {
+    const { slug } = req.body || {};
+    if (!slug) {
+      return res.status(400).json({ error: 'Contest slug is required' });
+    }
+
+    await setActiveContestSlug(slug);
+    res.json(await getActiveContest(true));
+  } catch (error) {
+    console.error('Failed to set active contest:', error);
+    res.status(400).json({ error: error.message || 'Failed to set active contest' });
+  }
+});
+
 app.get('/api/contacts', async (req, res) => {
   const contacts = await prisma.contact.findMany({
-    where: { deleted: { not: 'Y' } },
+    where: await getActiveContestContactWhere({ deleted: { not: 'Y' } }),
     orderBy: { timestamp: 'desc' }
   });
   res.json(serializeRecords(contacts));
@@ -470,6 +537,7 @@ app.get('/api/contacts', async (req, res) => {
 
 app.get('/api/contacts/all', async (req, res) => {
   const contacts = await prisma.contact.findMany({
+    where: await getActiveContestContactWhere(),
     orderBy: { timestamp: 'desc' }
   });
   res.json(serializeRecords(contacts));
@@ -477,14 +545,16 @@ app.get('/api/contacts/all', async (req, res) => {
 
 app.post('/api/contacts', async (req, res) => {
   const contactId = BigInt(Date.now());
-  const operator = req.body.operator || 'Unknown';
+  const operator = resolveContactOperator(req, req.body.operator);
   const contactData = buildContactData(req.body);
+  const contestSlug = await getActiveContestSlug();
 
   const newContact = await prisma.contact.create({
     data: {
       id: contactId,
       timestamp: new Date(),
       deleted: 'N',
+      contestSlug,
       ...contactData
     }
   });
@@ -501,7 +571,7 @@ app.put('/api/contacts/:id', async (req, res) => {
     return res.status(404).json({ error: 'Contact not found' });
   }
 
-  const operator = req.body.operator || 'Unknown';
+  const operator = resolveContactOperator(req, req.body.operator);
   const updatedData = buildContactData(req.body, existing);
 
   const updatedContact = await prisma.contact.update({
@@ -524,8 +594,21 @@ app.put('/api/contacts/:id', async (req, res) => {
 });
 
 app.delete('/api/contacts/clear', requireAdminAuth, async (req, res) => {
-  await prisma.contactHistory.deleteMany();
-  await prisma.contact.deleteMany();
+  const contestSlug = await getActiveContestSlug();
+  const contactIds = await prisma.contact.findMany({
+    where: { contestSlug },
+    select: { id: true }
+  });
+
+  if (contactIds.length > 0) {
+    await prisma.contactHistory.deleteMany({
+      where: {
+        contactId: { in: contactIds.map((row) => row.id) }
+      }
+    });
+  }
+
+  await prisma.contact.deleteMany({ where: { contestSlug } });
   res.status(204).send();
 });
 
@@ -537,7 +620,7 @@ app.delete('/api/contacts/:id', async (req, res) => {
     return res.status(404).json({ error: 'Contact not found' });
   }
 
-  const operator = req.query.operator || 'Unknown';
+  const operator = resolveContactOperator(req, req.query.operator);
   const deletedContact = await prisma.contact.update({
     where: { id: contactId },
     data: {
@@ -566,7 +649,7 @@ app.put('/api/contacts/:id/restore', async (req, res) => {
     return res.status(404).json({ error: 'Contact not found' });
   }
 
-  const operator = req.body.operator || 'Unknown';
+  const operator = resolveContactOperator(req, req.body.operator);
   const restoredContact = await prisma.contact.update({
     where: { id: contactId },
     data: {
@@ -587,6 +670,136 @@ app.put('/api/contacts/:id/restore', async (req, res) => {
   res.json(serializeRecord(restoredContact));
 });
 
+app.post('/api/contacts/refresh-lookup', requireAdminAuth, async (req, res) => {
+  const missingOnly = req.body?.missingOnly !== false;
+  const includeDeleted = Boolean(req.body?.includeDeleted);
+  const preferLocalCache = Boolean(req.body?.preferLocalCache);
+  const networkOnly = Boolean(req.body?.networkOnly);
+  const operator = resolveContactOperator(req, req.body?.operator);
+
+  try {
+    let contacts = await prisma.contact.findMany({
+      where: await getActiveContestContactWhere(
+        includeDeleted ? {} : { deleted: { not: 'Y' } }
+      ),
+      orderBy: { timestamp: 'desc' }
+    });
+
+    if (missingOnly) {
+      contacts = contacts.filter((contact) => isContactNameMissing(contact.name));
+    }
+
+    const summary = {
+      scanned: contacts.length,
+      updated: 0,
+      unchanged: 0,
+      skipped: 0,
+      failed: 0,
+      results: []
+    };
+
+    for (let index = 0; index < contacts.length; index += 1) {
+      const contact = contacts[index];
+      const lookup = await resolveCallsignLookup(prisma, contact.callsign, {
+        preferLocalCache,
+        networkOnly
+      });
+
+      if (!lookup?.success) {
+        summary.failed += 1;
+        summary.results.push({
+          contactId: String(contact.id),
+          callsign: contact.callsign,
+          status: 'failed'
+        });
+      } else {
+        const existing = contact;
+        const outcome = await applyLookupToContact(prisma, contact, lookup, operator);
+
+        if (outcome.status === 'updated') {
+          await trackContactChange(
+            contact.id,
+            'updated',
+            serializeRecord(existing),
+            serializeRecord(outcome.contact),
+            operator
+          );
+          summary.updated += 1;
+        } else if (outcome.status === 'unchanged') {
+          summary.unchanged += 1;
+        } else {
+          summary.skipped += 1;
+        }
+
+        summary.results.push(outcome);
+      }
+
+      if (index < contacts.length - 1 && LOOKUP_DELAY_MS > 0) {
+        await delay(LOOKUP_DELAY_MS);
+      }
+    }
+
+    res.json({
+      success: true,
+      missingOnly,
+      preferLocalCache,
+      networkOnly,
+      message: `Refreshed ${summary.updated} of ${summary.scanned} log entries (${summary.failed} failed).`,
+      ...summary
+    });
+  } catch (error) {
+    console.error('Bulk contact lookup refresh error:', error);
+    res.status(500).json({ error: 'Unable to refresh logbook lookup data.' });
+  }
+});
+
+app.post('/api/contacts/:id/refresh-lookup', requireAdminAuth, async (req, res) => {
+  const contactId = BigInt(req.params.id);
+  const preferLocalCache = Boolean(req.body?.preferLocalCache);
+  const networkOnly = Boolean(req.body?.networkOnly);
+  const operator = resolveContactOperator(req, req.body?.operator);
+
+  try {
+    const existing = await prisma.contact.findUnique({ where: { id: contactId } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Contact not found' });
+    }
+
+    const lookup = await resolveCallsignLookup(prisma, existing.callsign, {
+      preferLocalCache,
+      networkOnly
+    });
+
+    if (!lookup?.success) {
+      return res.status(404).json({
+        error: `No lookup data found for ${existing.callsign}.`,
+        callsign: existing.callsign
+      });
+    }
+
+    const outcome = await applyLookupToContact(prisma, existing, lookup, operator);
+    if (outcome.status === 'updated') {
+      await trackContactChange(
+        contactId,
+        'updated',
+        serializeRecord(existing),
+        serializeRecord(outcome.contact),
+        operator
+      );
+    }
+
+    res.json({
+      success: true,
+      ...outcome,
+      lookupSource: lookup.source || 'lookup',
+      contact: serializeRecord(outcome.contact || existing)
+    });
+  } catch (error) {
+    console.error('Contact lookup refresh error:', error);
+    res.status(500).json({ error: 'Unable to refresh contact lookup data.' });
+  }
+});
+
 app.get('/api/callsigns', async (req, res) => {
   const callsigns = await prisma.callsignLookup.findMany({
     orderBy: { timestamp: 'desc' }
@@ -595,7 +808,16 @@ app.get('/api/callsigns', async (req, res) => {
 });
 
 app.get('/api/contacts/history/all', async (req, res) => {
+  const contestSlug = await getActiveContestSlug();
+  const contactIds = await prisma.contact.findMany({
+    where: { contestSlug },
+    select: { id: true }
+  });
+
   const history = await prisma.contactHistory.findMany({
+    where: {
+      contactId: { in: contactIds.map((row) => row.id) }
+    },
     orderBy: { timestamp: 'desc' }
   });
   res.json(serializeRecords(history));
@@ -703,46 +925,14 @@ app.get('/api/active-operators/cleanup', async (req, res) => {
   });
 });
 
-async function enrichOneByOneWithHolderLocation(result) {
-  if (!result.holderCallsign) {
-    return result;
-  }
-
-  if (result.grid && result.name) {
-    return result;
-  }
-
-  try {
-    const enriched = await enrichReservationWithCallook({
-      requestorCall: result.holderCallsign,
-      licenseName: result.name,
-      grid: result.grid,
-      city: result.city,
-      state: result.state,
-      country: result.country
-    });
-
-    return {
-      ...result,
-      name: enriched.licenseName || result.name || '',
-      grid: enriched.grid || result.grid || '',
-      city: enriched.city || result.city || '',
-      state: enriched.state || result.state || '',
-      country: enriched.country || result.country || '',
-      holderName: enriched.licenseName || result.holderName || result.requestor || ''
-    };
-  } catch (error) {
-    console.error('1x1 holder Callook enrichment error:', error);
-    return result;
-  }
-}
-
 app.get('/api/one-by-one/cache/status', requireAdminAuth, async (req, res) => {
   try {
     const meta = await getCacheMeta(prisma);
     const defaults = suggestedFieldDayDateRange();
+    const cooldown = getRefreshCooldownInfo(meta);
     res.json({
       ...meta,
+      ...cooldown,
       running: isOneByOneCacheRefreshRunning(),
       suggestedStartDate: defaults.startDate,
       suggestedEndDate: defaults.endDate
@@ -767,7 +957,23 @@ app.post('/api/one-by-one/cache/refresh', requireAdminAuth, async (req, res) => 
     });
   }
 
-  startOneByOneCacheRefresh(prisma, fetch, { startDate, endDate }).catch((error) => {
+  try {
+    const meta = await getCacheMeta(prisma);
+    const cooldown = getRefreshCooldownInfo(meta);
+    if (!cooldown.canRefresh) {
+      return res.status(429).json({
+        error: cooldown.cooldownMessage || '1×1 cache refresh is on cooldown.',
+        nextRefreshAt: cooldown.nextRefreshAt,
+        remainingMs: cooldown.remainingMs,
+        cooldownHours: cooldown.cooldownHours
+      });
+    }
+  } catch (error) {
+    console.error('1x1 cache cooldown check error:', error);
+    return res.status(500).json({ error: 'Unable to verify 1×1 cache refresh cooldown.' });
+  }
+
+  startOneByOneCacheRefresh(prisma, { startDate, endDate }).catch((error) => {
     console.error('1x1 cache refresh failed:', error);
   });
 
@@ -783,88 +989,8 @@ app.get('/api/lookup/:callsign', async (req, res) => {
   const callsign = req.params.callsign.toUpperCase();
 
   try {
-    let result = null;
-
-    if (isOneByOneCallsign(callsign)) {
-      result = await lookupCachedOneByOne(prisma, callsign);
-      if (result) {
-        result = await enrichOneByOneWithHolderLocation(result);
-      }
-
-      if (!result?.success) {
-        try {
-          result = await lookupOneByOneCallsign(callsign, fetch);
-          if (result.success) {
-            result = await enrichOneByOneWithHolderLocation(result);
-          }
-        } catch (error) {
-          console.error('1x1 callsign lookup error:', error.message || error);
-        }
-      }
-    }
-
-    if (!result?.success) {
-      result = await lookupCallookCallsign(callsign);
-    }
-
-    if (!result?.success) {
-      res.json({
-        success: false,
-        message: 'Callsign not found'
-      });
-      return;
-    }
-
-    if (result.cacheRecord) {
-      await prisma.callsignLookup.upsert({
-        where: { callsign: result.cacheRecord.callsign },
-        create: result.cacheRecord,
-        update: result.cacheRecord
-      });
-    } else {
-      await prisma.callsignLookup.upsert({
-        where: { callsign: result.callsign },
-        create: {
-          callsign: result.callsign,
-          name: result.name || result.eventName || '',
-          grid: result.grid || '',
-          city: result.city || '',
-          state: result.state || '',
-          country: result.country || '',
-          timestamp: new Date()
-        },
-        update: {
-          name: result.name || result.eventName || '',
-          grid: result.grid || '',
-          city: result.city || '',
-          state: result.state || '',
-          country: result.country || '',
-          timestamp: new Date()
-        }
-      });
-    }
-
-    res.json({
-      success: true,
-      name: result.name,
-      callsign: result.callsign,
-      grid: result.grid || '',
-      city: result.city || '',
-      state: result.state || '',
-      country: result.country || '',
-      expiryDate: result.expiryDate || '',
-      isExpired: !!result.isExpired,
-      source: result.source || 'callook',
-      specialEvent: !!result.specialEvent,
-      eventName: result.eventName || '',
-      coordinator: result.coordinator || '',
-      requestor: result.requestor || '',
-      requestorAddr: result.requestorAddr || '',
-      holderCallsign: result.holderCallsign || '',
-      holderName: result.holderName || '',
-      startDate: result.startDate || '',
-      endDate: result.endDate || ''
-    });
+    const result = await resolveCallsignLookup(prisma, callsign);
+    res.json(toPublicLookupResponse(result || { success: false }));
   } catch (error) {
     console.error('Callsign lookup error:', error);
     res.status(500).json({
@@ -882,7 +1008,7 @@ app.get('*', (req, res) => {
 
 async function startServer() {
   await ensureAppConfigConfigured();
-  await ensureStationSettingsConfigured();
+  await ensureContestsConfigured();
 
   app.listen(PORT, () => {
     console.log(`Ham Radio Contest Logger server running on port ${PORT}`);

@@ -30,7 +30,7 @@ export const ARRL_VALID_SECTIONS = [
   'MI', 'OH', 'WV',
   'IL', 'IN', 'WI',
   'CO', 'IA', 'KS', 'MN', 'MO', 'ND', 'NE', 'SD',
-  'AB', 'BC', 'GH', 'MB', 'NB', 'NL', 'NS', 'ONE', 'ONN', 'ONS', 'PE', 'QC', 'SK', 'TER'
+  'AB', 'BC', 'GH', 'MB', 'NB', 'NL', 'NS', 'ONE', 'ONN', 'ONS', 'PE', 'QC', 'SK', 'TER', 'YT'
 ];
 
 export function validateClass(classEntry) {
@@ -41,6 +41,15 @@ export function validateClass(classEntry) {
 export function validateLocation(location) {
   if (!location) return false;
   return ARRL_VALID_SECTIONS.includes(location.toUpperCase());
+}
+
+export function validateCallsign(callsign) {
+  const normalized = String(callsign || '').trim().toUpperCase();
+  if (normalized.length < 3 || normalized.length > 12) {
+    return false;
+  }
+
+  return /^[A-Z0-9/]+$/.test(normalized) && /[A-Z]/.test(normalized) && /[0-9]/.test(normalized);
 }
 
 // ARRL Field Day QSO points (before power multiplier and bonus points)

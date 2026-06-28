@@ -1,6 +1,6 @@
 {
   "name": "cq-rush",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "CQ Rush — free, open-source ARRL Field Day contest logbook",
   "private": true,
   "license": "ISC",
@@ -19,5 +19,12 @@
     "arrl",
     "contest-logging",
     "logbook"
-  ]
+  ],
+  "scripts": {
+    "build:canada-sections": "node scripts/build-canada-section-geojson.js"
+  },
+  "devDependencies": {
+    "proj4": "^2.20.9",
+    "shapefile": "^0.6.6"
+  }
 }

@@ -63,10 +63,9 @@ const getCookie = (name) => {
   return null;
 };
 
-function App() {
+function MainApp() {
   const { clubName, status, loggedInUser, logout } = useAuth();
   const location = useLocation();
-  const isPublicDisplay = location.pathname === '/display';
   const isAboutPage = location.pathname === '/about';
   const [contacts, setContacts] = useState([]);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -108,6 +107,7 @@ function App() {
   const [lastCallsign, setLastCallsign] = useState('');
   const [callsignCache, setCallsignCache] = useState({});
   const [licenseNotice, setLicenseNotice] = useState(null);
+  const [callsignLookupStatus, setCallsignLookupStatus] = useState(null);
   const [editingContactId, setEditingContactId] = useState(null);
   const [editContactData, setEditContactData] = useState({});
   const [showEditModal, setShowEditModal] = useState(false);
@@ -260,6 +260,7 @@ function App() {
     'QC': 'Quebec',
     'SK': 'Saskatchewan',
     'TER': 'Territories',
+    'YT': 'Yukon',
     // Special locations
     'MX': 'Mexico',
     'DX': 'DX'
@@ -433,16 +434,19 @@ function App() {
     if (!callsign || callsign.length < 3) {
       setFormData(prev => ({ ...prev, name: '' }));
       setLicenseNotice(null);
+      setCallsignLookupStatus(null);
       return;
     }
 
     const upperCallsign = callsign.toUpperCase();
+    setCallsignLookupStatus('loading');
     
     // Check cache first
     if (callsignCache[upperCallsign]) {
       const cached = callsignCache[upperCallsign];
       setFormData(prev => ({ ...prev, name: cached.name || '' }));
       setLicenseNotice(buildLicenseNotice(cached, upperCallsign));
+      setCallsignLookupStatus('found');
       return;
     }
 
@@ -454,13 +458,15 @@ function App() {
         cacheCallsignLookup(upperCallsign, data);
         setFormData(prev => ({ ...prev, name: data.name || '' }));
         setLicenseNotice(buildLicenseNotice(data, upperCallsign));
+        setCallsignLookupStatus('found');
       } else {
-        setFormData(prev => ({ ...prev, name: '' }));
+        setCallsignLookupStatus('not-found');
         setLicenseNotice(null);
       }
     } catch (error) {
       console.error('Error looking up callsign:', error);
-      setFormData(prev => ({ ...prev, name: '' }));
+      setCallsignLookupStatus('not-found');
+      setLicenseNotice(null);
     }
   };
 
@@ -904,6 +910,7 @@ function App() {
           notes: ''
         }));
         setLicenseNotice(null);
+        setCallsignLookupStatus(null);
         focusLoggingStart();
       }
     } catch (error) {
@@ -920,6 +927,7 @@ function App() {
         notes: ''
       }));
       setLicenseNotice(null);
+      setCallsignLookupStatus(null);
       focusLoggingStart();
     }
   };
@@ -967,7 +975,7 @@ function App() {
     return () => {
       clearInterval(pollInterval);
     };
-  }, []);
+  }, [status.activeContest?.slug]);
 
   const qsoPoints = calculateQsoPoints(contacts);
   const scoreBreakdown = calculateScoreBreakdown(contacts);
@@ -1071,7 +1079,7 @@ function App() {
     '8': ['MI', 'OH', 'WV'],
     '9': ['IL', 'IN', 'WI'],
     '0': ['CO', 'IA', 'KS', 'MN', 'MO', 'ND', 'NE', 'SD'],
-    'Canada': ['AB', 'BC', 'GH', 'MB', 'NB', 'NL', 'NS', 'ONE', 'ONN', 'ONS', 'PE', 'QC', 'SK', 'TER']
+    'Canada': ['AB', 'BC', 'GH', 'MB', 'NB', 'NL', 'NS', 'ONE', 'ONN', 'ONS', 'PE', 'QC', 'SK', 'TER', 'YT']
   };
 
   const getAreaLabel = (area) => {
@@ -1756,8 +1764,8 @@ function App() {
   // Removed old preciseStateBoundaries and calculatePreciseCoordinates for debugging
 
   return (
-    <div className={`app-container${isPublicDisplay ? ' app-container-display' : ''}`}>
-      {!isPublicDisplay && !isAboutPage && (
+    <div className="app-container">
+      {!isAboutPage && (
       <div className="header-bar">
         <div className="header-content">
           <nav className="header-nav header-nav-left desktop-only">
@@ -1948,10 +1956,11 @@ function App() {
                               const upperValue = e.target.value.toUpperCase();
                               setFieldErrors((prev) => ({ ...prev, callsign: undefined }));
                               setLicenseNotice(null);
+                              setCallsignLookupStatus(null);
                               setFormData(prev => ({
-                                ...prev, 
+                                ...prev,
                                 callsign: upperValue,
-                                name: upperValue ? prev.name : ''
+                                name: prev.callsign === upperValue ? prev.name : ''
                               }));
                             }}
                             placeholder="e.g., W1AW"
@@ -1982,13 +1991,22 @@ function App() {
                           name="name"
                           tabIndex={-1}
                           value={formData.name}
-                          readOnly
-                          placeholder="Auto-populated from callsign"
-                          className={`readonly-field ${!operator.callsign ? 'disabled-field' : ''}`}
+                          onChange={handleInputChange}
+                          placeholder={
+                            callsignLookupStatus === 'not-found'
+                              ? 'Enter operator name'
+                              : 'From lookup or type manually'
+                          }
+                          className={`${!operator.callsign ? 'disabled-field' : ''} ${callsignLookupStatus === 'not-found' && !formData.name ? 'name-entry-suggested' : ''}`}
                           disabled={!operator.callsign}
                           onMouseEnter={(e) => formData.callsign && showCallsignDetails(formData.callsign, e, null)}
                           onMouseLeave={() => setShowCallsignPopup(false)}
                         />
+                        {callsignLookupStatus === 'not-found' && formData.callsign.length >= 3 && (
+                          <div className="callsign-lookup-hint">
+                            Lookup not found — you can enter the operator name manually.
+                          </div>
+                        )}
                       </div>
 
                       <div className="form-group">
@@ -2511,7 +2529,7 @@ function App() {
                 </button>
               </div>
             </div>
-            <ArrlSectionsMap contacts={contacts} height={600} showOpenLink={false} />
+            <ArrlSectionsMap contacts={contacts} height={600} showOpenLink={false} embedded />
           </div>
         </div>
       )}
@@ -2682,13 +2700,26 @@ function App() {
             )}
           </>
         } />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/display" element={<PublicDisplay />} />
+        <Route path="/admin" element={<div className="admin-route-shell"><Admin /></div>} />
         <Route path="/about" element={<AboutPage />} />
       </Routes>
-      {!isPublicDisplay && location.pathname !== '/about' && <AppFooter />}
+      {location.pathname !== '/about' && <AppFooter />}
     </div>
   );
+}
+
+function App() {
+  const location = useLocation();
+
+  if (location.pathname === '/display') {
+    return (
+      <div className="app-container app-container-display">
+        <PublicDisplay />
+      </div>
+    );
+  }
+
+  return <MainApp />;
 }
 
 export default App;

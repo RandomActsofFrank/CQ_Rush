@@ -5,6 +5,23 @@ All notable changes to CQ Rush are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-06-29
+
+### Added
+
+- **Multi-contest logbooks** — QSO logs and station settings are scoped by contest slug (default **`field-day`** / ARRL Field Day)
+- **`contests`** database table plus **`contacts.contestSlug`** with migration from existing data
+- Admin **Active Contest** selector in Station Settings to switch which logbook and settings the logger and public display use
+- Contest API: `GET /api/contests`, `GET /api/contests/active`, `PUT /api/contests/active` (admin)
+- Client contest registry (`client/src/contests/registry.js`) for contest-specific UI labels and future rules modules
+
+### Changed
+
+- **`contacts`** table is the logbook; each row now belongs to one contest via **`contestSlug`**
+- Station settings stored per contest on the **`contests.settings`** JSON column (legacy `site_config.station_settings` migrated on upgrade)
+- Public display map title follows the active contest
+- Display map zoom adjusted (~one zoom step wider) and pan/zoom no longer resets every second
+
 ## [1.2.1] - 2026-06-27
 
 ### Added
@@ -91,6 +108,7 @@ First public release of **CQ Rush** — rebranded and production-ready Field Day
 - Admin delete-all logs route and double-confirmation flow
 - Header date/time layout on desktop and mobile
 
+[1.3.0]: https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.3.0
 [1.2.1]: https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.2.1
 [1.2.0]: https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.2.0
 [1.1.1]: https://github.com/RandomActsofFrank/CQ_Rush/releases/tag/v1.1.1

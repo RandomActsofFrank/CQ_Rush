@@ -8,6 +8,8 @@ import {
   DEFAULT_STATION_SETTINGS
 } from './fieldDayRules';
 import { getEntryClubName } from './branding';
+import { getContestDisplayTitle } from './contests/registry';
+import AppFooter from './AppFooter';
 import ArrlSectionsMap from './ArrlSectionsMap';
 
 const DISPLAY_THEME_KEY = 'hamlog-display-dark-mode';
@@ -67,6 +69,7 @@ function PublicDisplay() {
   const [activeOperators, setActiveOperators] = useState([]);
   const [stationSettings, setStationSettings] = useState(DEFAULT_STATION_SETTINGS);
   const [clubName, setClubName] = useState('');
+  const [activeContestSlug, setActiveContestSlug] = useState('field-day');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [darkMode, setDarkMode] = useState(readDarkModePreference);
   const [visibleContactCount, setVisibleContactCount] = useState(12);
@@ -103,6 +106,9 @@ function PublicDisplay() {
         if (statusRes.ok) {
           const status = await statusRes.json();
           setClubName(getEntryClubName(status.clubName || ''));
+          if (status.activeContest?.slug) {
+            setActiveContestSlug(status.activeContest.slug);
+          }
         }
       } catch (error) {
         console.error('Error loading public display data:', error);
@@ -140,6 +146,7 @@ function PublicDisplay() {
   const projectedScore = calculateProjectedScore(qsoPoints, stationSettings);
   const hasStationConfig = Boolean(stationSettings.entryClass);
   const recentContacts = contacts.slice(0, visibleContactCount);
+  const mapTitle = getContestDisplayTitle(activeContestSlug, 'Sections Progress');
   const theme = darkMode ? 'dark' : 'light';
 
   return (
@@ -155,7 +162,7 @@ function PublicDisplay() {
         </label>
 
         <div className="public-display-header-center">
-          <span className="public-display-header-title">ARRL Sections Progress</span>
+          <span className="public-display-header-title">{mapTitle}</span>
           <span className="public-display-header-separator">|</span>
           <span className="public-display-header-datetime">
             <span className="public-display-header-local">
@@ -259,6 +266,7 @@ function PublicDisplay() {
             fillHeight
             embedded
           />
+          <AppFooter className="public-display-map-footer" />
         </main>
       </div>
     </div>
